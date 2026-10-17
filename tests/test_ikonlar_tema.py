@@ -39,6 +39,8 @@ async def main():
         await onboard(mp)
         await mp.evaluate("S.settings.theme='neon'; S.settings.mode='dark'; save(); applyTheme(); render()")
         await mp.wait_for_timeout(300); await mp.screenshot(path=SP+'shots/i_m_today.png')
+        hl=await mp.evaluate("[document.querySelector('.mhead .hello')?.textContent, getComputedStyle(document.querySelector('.mhead')).backgroundColor]"); print('selamlama', hl)
+        if hl[0] != 'Merhaba, Test' or 'oklab' in hl[1] and ' / ' in hl[1]: errs.append('selamlama ya da opak üst çubuk hatalı: ' + str(hl))
         qt=await mp.evaluate("document.querySelector('.qcard .qtext')?.textContent || ''"); print('günün cümlesi', qt)
         if len(qt) < 10: errs.append('günün cümlesi yok')
         await mp.click('.tabs [data-tab=rehber]'); await mp.wait_for_timeout(300)

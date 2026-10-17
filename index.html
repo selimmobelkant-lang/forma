@@ -184,12 +184,15 @@ a{color:var(--primary-text)}
              radial-gradient(50rem 30rem at 110% 110%, color-mix(in oklch, var(--chart-2) 10%, transparent), transparent 60%)}
 .wrap{max-width:1080px;margin:0 auto;padding:16px max(16px, env(safe-area-inset-right)) calc(120px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))}
 .dhead{display:none}
-.mhead{position:sticky;top:0;z-index:20;padding-top:env(safe-area-inset-top);background:color-mix(in oklch, var(--background) 78%, transparent);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--border)}
+.mhead{position:sticky;top:0;z-index:20;padding-top:env(safe-area-inset-top);background:var(--background);border-bottom:1px solid var(--border);box-shadow:0 6px 16px -14px oklch(0 0 0 / .5)}
 .mhead .in{padding:10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));display:flex;align-items:center;gap:10px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.02em;font-size:16px}
 .logo{width:36px;height:36px;flex:none;background:var(--logo) center/contain no-repeat;filter:drop-shadow(0 2px 4px oklch(0 0 0 / .18))}
 .brand small{display:block;font-weight:500;font-size:12px;color:var(--muted-foreground);letter-spacing:0}
-.mhead .day{margin-left:auto;font-size:13px;color:var(--muted-foreground)}
+.mhead .day{margin-left:auto;font-size:13px;color:var(--muted-foreground);text-align:right;line-height:1.3;min-width:0}
+.hello{font-size:13px;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+.hello b{color:var(--foreground);font-weight:650}
+.dhead .hello{font-size:14px;max-width:260px}
 .mhead .day b{color:var(--foreground);font-size:15px}
 .iconbtn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:calc(9px * var(--rk));border:1px solid var(--border);background:var(--card);cursor:pointer;box-shadow:var(--e1),var(--hi);color:var(--foreground)}
 .iconbtn svg{width:17px;height:17px}
@@ -1406,18 +1409,20 @@ function render(){
   const root = $('#root');
   if (!S.profile){ root.innerHTML = `<div class="inset" style="min-height:100vh">${viewOnboarding()}</div>`; afterRender(); return; }
   const d = dayIndex(today());
+  const hello = S.profile.name ? `Merhaba, <b>${esc(S.profile.name)}</b>` : 'Merhaba';
   const W = blockWeeks(); const dayTxt = d < 1 ? `Başlangıca <b>${1 - d}</b> gün` : W ? `Gün <b>${Math.min(d, 999)}</b> / ${W * 7}` : `<b>${Math.max(1, weekIndex(today()))}.</b> hafta`;
   root.innerHTML = `<div class="app">
   ${sidebarHTML(d)}
   <div class="inset">
     <header class="mhead"><div class="in">
       <div class="brand"><div class="logo"></div>${APP_NAME}</div>
-      <div class="day num">${dayTxt}</div>
+      <div class="day"><div class="hello">${hello}</div><div class="num">${dayTxt}</div></div>
       <button class="iconbtn" data-act="appearance" aria-label="Görünüm">${icon('palette')}</button>
       <button class="iconbtn" data-act="tab" data-tab="ayarlar" aria-label="Ayarlar">${icon('ayarlar')}</button>
     </div></header>
     <header class="dhead">
       <div class="crumb">${APP_NAME} <span style="opacity:.5">/</span> <b>${TAB_NAMES[UI.tab]}</b></div><div class="sp"></div>
+      <div class="hello">${hello}</div>
       <div class="daypill num">${dayTxt}</div>
       <button class="iconbtn" data-act="appearance" aria-label="Görünüm" title="Görünüm">${icon('palette')}</button>
       <button class="iconbtn" data-act="toggleMode" aria-label="Açık/koyu mod" title="Açık/koyu mod">${icon(isDark() ? 'sun' : 'moon')}</button>

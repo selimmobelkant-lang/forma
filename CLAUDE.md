@@ -23,7 +23,7 @@ Forma, kişisel antrenman ve beslenme koçu uygulaması. Arayüz Türkçe. Hedef
 - Dışa aktarma etiketi `forma`. İçe aktarma eski `kocum90` etiketini de kabul etmeye devam etmeli.
 
 ## Dil ve ton (arayüz metinleri)
-- Samimi ama profesyonel. Kullanıcıya arkadaşı gibi davranma, argo ve laubali ifade kullanma ("Hadi bakalım", "panik yok" gibi), kullanıcıya adıyla seslenme.
+- Samimi ama profesyonel. Kullanıcıya arkadaşı gibi davranma, argo ve laubali ifade kullanma ("Hadi bakalım", "panik yok" gibi). Kullanıcıya adıyla yalnızca üst köşedeki "Merhaba, <ad>" selamlamasında seslenilir; metinlerin içinde ad kullanma.
 - Kaynak isimleri (video sahibi, rapor adları) arayüzde görünmez. Kaynaklar yalnızca Obsidian notlarında durur.
 
 ## Test
