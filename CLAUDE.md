@@ -10,6 +10,8 @@ Forma, kişisel antrenman ve beslenme koçu uygulaması. Arayüz Türkçe. Hedef
 ## Dosyalar
 - `index.html` — uygulamanın tamamı (HTML + CSS + JS tek dosyada, yaklaşık 1,9 MB).
 - `tests/` — Playwright testleri. `python3 tests/hepsi.py` hepsini çalıştırır.
+- `ex/` — kütüphanedeki yeni hareketlerin görselleri (free-exercise-db, kamu malı). `sw.js` içindeki `EX_RESIMLER` listesiyle önbelleğe alınır; görsel ekleyince listeyi de güncelle.
+- `manifest.webmanifest`, `sw.js`, `icons/` — PWA dosyaları. `yayinla.sh` — GitHub Pages'e yayın.
 
 ## index.html ile çalışırken
 - Dosyanın tamamını okuma. Büyüklüğün çoğu `EX_FRAMES` satırındaki gömülü egzersiz görselleri (base64). O satırı asla yeniden yazma, kısaltma ya da biçimlendirme.

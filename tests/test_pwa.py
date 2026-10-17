@@ -64,6 +64,12 @@ async def main():
             check(n >= 6, f'önbellekte {n} dosya')
 
             await onboard(pg, BASE + 'index.html?bugun=2026-10-19')
+            # hareket görselleri arka planda önbelleğe alınıyor
+            for _ in range(100):
+                n_ex = await pg.evaluate("caches.keys().then(ks=>caches.open(ks.find(k=>k.startsWith('forma-v')))).then(c=>c.keys()).then(r=>r.filter(x=>x.url.includes('/ex/')).length)")
+                if n_ex >= 200: break
+                await pg.wait_for_timeout(200)
+            check(n_ex >= 200, f'hareket görselleri önbellekte ({n_ex})')
             veri = await pg.evaluate("JSON.stringify(Object.keys(localStorage).sort().map(k=>[k, localStorage.getItem(k)]))")
 
             # İnternetsiz açılış
@@ -72,6 +78,8 @@ async def main():
                 await pg.goto(BASE + adres); await pg.wait_for_timeout(500)
                 check(await pg.evaluate("!!document.querySelector('.sidebar .sb-item') && !document.querySelector('#ob_name')"), f'internetsiz açıldı: /{adres}')
             check(await pg.evaluate("JSON.stringify(Object.keys(localStorage).sort().map(k=>[k, localStorage.getItem(k)]))") == veri, 'kullanıcı verisi aynı kaldı')
+            img = await pg.evaluate("new Promise(r=>{const im=new Image(); im.onload=()=>r(im.naturalWidth); im.onerror=()=>r(0); im.src='ex/Goblet_Squat/1.jpg'})")
+            check(img > 0, f'hareket görseli internetsiz açıldı ({img}px)')
             await pg.screenshot(path=SP + 'shots/p_offline.png')
             await ctx.set_offline(False)
 

@@ -3,7 +3,7 @@ import subprocess, sys
 from pathlib import Path
 T = Path(__file__).resolve().parent
 ok = True
-for f in ['test_yag_yakma.py', 'test_hedefler_profiller.py', 'test_gorsel_ai.py', 'test_ikonlar_tema.py', 'test_pwa.py']:
+for f in ['test_yag_yakma.py', 'test_hedefler_profiller.py', 'test_gorsel_ai.py', 'test_ikonlar_tema.py', 'test_pwa.py', 'test_kutuphane.py']:
     print(f'\n=== {f}')
     r = subprocess.run([sys.executable, str(T / f)], capture_output=True, text=True, timeout=600)
     out = (r.stdout + r.stderr).strip()
