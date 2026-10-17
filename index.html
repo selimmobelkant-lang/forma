@@ -4,6 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Forma</title>
+<meta name="description" content="Antrenman ve beslenme koçu">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Forma">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#e8ebed" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)">
 <script>
 (function(){ var st={}; try{ var ix=JSON.parse(localStorage.getItem('forma_profiles'))||{}; var raw=localStorage.getItem('forma_state_'+(ix.cur||'p1'))||localStorage.getItem('kocum90_v1'); st=(JSON.parse(raw)||{}).settings||{}; }catch(e){}
   var t=st.theme||'ufuk', m=st.mode||'system', dark=m==='dark'||(m==='system'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
@@ -150,10 +160,10 @@ a{color:var(--primary-text)}
 .inset::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:radial-gradient(60rem 30rem at 10% -10%, color-mix(in oklch, var(--primary) 10%, transparent), transparent 60%),
              radial-gradient(50rem 30rem at 110% 110%, color-mix(in oklch, var(--chart-2) 10%, transparent), transparent 60%)}
-.wrap{max-width:1080px;margin:0 auto;padding:16px 16px 120px}
+.wrap{max-width:1080px;margin:0 auto;padding:16px max(16px, env(safe-area-inset-right)) calc(120px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))}
 .dhead{display:none}
-.mhead{position:sticky;top:0;z-index:20;background:color-mix(in oklch, var(--background) 78%, transparent);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--border)}
-.mhead .in{padding:10px 16px;display:flex;align-items:center;gap:10px}
+.mhead{position:sticky;top:0;z-index:20;padding-top:env(safe-area-inset-top);background:color-mix(in oklch, var(--background) 78%, transparent);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--border)}
+.mhead .in{padding:10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));display:flex;align-items:center;gap:10px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.02em;font-size:16px}
 .logo{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--primary-foreground);flex:none;
   background:linear-gradient(145deg, color-mix(in oklch, var(--primary) 80%, white), var(--primary) 55%, color-mix(in oklch, var(--primary) 75%, black));
@@ -166,7 +176,7 @@ a{color:var(--primary-text)}
 .iconbtn svg{width:17px;height:17px}
 .iconbtn:hover{background:var(--accent-bg)}
 
-.tabs{position:fixed;left:8px;right:8px;bottom:8px;z-index:30;background:color-mix(in oklch, var(--card) 82%, transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border-radius:16px;box-shadow:var(--e3);padding-bottom:env(safe-area-inset-bottom)}
+.tabs{position:fixed;left:max(8px, env(safe-area-inset-left));right:max(8px, env(safe-area-inset-right));bottom:max(8px, env(safe-area-inset-bottom));z-index:30;background:color-mix(in oklch, var(--card) 82%, transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border-radius:16px;box-shadow:var(--e3)}
 .tabs .in{display:grid;grid-template-columns:repeat(6,1fr)}
 .tabs button{border:0;background:none;padding:8px 2px 7px;cursor:pointer;font-size:10.5px;color:var(--muted-foreground);display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:12px;margin:4px 2px}
 .tabs button svg{width:19px;height:19px}
@@ -416,13 +426,13 @@ details .bd p{margin:6px 0}
 
 /* modal / toast / sayaç */
 .modal{position:fixed;inset:0;z-index:50;background:oklch(0.15 0.01 260 / .38);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;animation:fade .18s ease-out}
-.modal .box{background:var(--card);width:100%;max-width:560px;max-height:88vh;overflow:auto;border-radius:20px 20px 0 0;padding:20px 20px 26px;box-shadow:var(--e3),var(--hi);animation:pop .22s cubic-bezier(.2,.9,.3,1.2)}
+.modal .box{background:var(--card);width:100%;max-width:560px;max-height:calc(88vh - env(safe-area-inset-top));overflow:auto;border-radius:20px 20px 0 0;padding:20px 20px calc(26px + env(safe-area-inset-bottom));box-shadow:var(--e3),var(--hi);animation:pop .22s cubic-bezier(.2,.9,.3,1.2)}
 @media (min-width:640px){.modal{align-items:center}.modal .box{border-radius:18px}}
 @keyframes fade{from{opacity:0}} @keyframes pop{from{opacity:0;transform:translateY(12px) scale(.97)}}
 @media (prefers-reduced-motion:reduce){.modal,.modal .box{animation:none}}
-.toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:var(--foreground);color:var(--background);padding:9px 14px;border-radius:10px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;box-shadow:var(--e3)}
+.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--foreground);color:var(--background);padding:9px 14px;border-radius:10px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;box-shadow:var(--e3)}
 .toast.on{opacity:1}
-.restbar{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:40;background:color-mix(in oklch, var(--foreground) 92%, transparent);color:var(--background);border-radius:14px;padding:8px 10px 8px 14px;display:none;gap:10px;align-items:center;box-shadow:var(--e3);backdrop-filter:blur(10px)}
+.restbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom));z-index:40;background:color-mix(in oklch, var(--foreground) 92%, transparent);color:var(--background);border-radius:14px;padding:8px 10px 8px 14px;display:none;gap:10px;align-items:center;box-shadow:var(--e3);backdrop-filter:blur(10px)}
 @media (min-width:1024px){.restbar{bottom:24px;left:calc(50% + 128px)}.toast{bottom:90px;left:calc(50% + 128px)}}
 .restbar.on{display:flex}
 .restbar .t{font-size:24px;font-weight:700;min-width:58px;font-variant-numeric:tabular-nums}
@@ -2375,6 +2385,12 @@ document.addEventListener('keydown', e => {
 window.addEventListener('beforeunload', e => { if (UI.session && Object.keys(UI.session.sets).length){ e.preventDefault(); e.returnValue = ''; } });
 
 load(); render();
+
+/* ---------- çevrimdışı (service worker) ---------- */
+// Yalnızca http/https'te çalışır; dosyadan (file://) açılınca kayıt yapılmaz.
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache:'none' }).catch(() => {}));
+}
 </script>
 </body>
 </html>
