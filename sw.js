@@ -1,7 +1,7 @@
 /* Forma service worker: uygulamayı önbelleğe alır, internet yokken de açılmasını sağlar.
    Yeni sürüm yayınlarken SURUM'ü bir artır; eski önbellek etkinleşme sırasında silinir.
    Kullanıcı verisine (localStorage, IndexedDB) dokunmaz, yalnızca kendi "forma-" önbelleklerini yönetir. */
-const SURUM = 'v3';
+const SURUM = 'v4';
 const CACHE = 'forma-' + SURUM;
 const DOSYALAR = ['index.html', 'manifest.webmanifest',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
