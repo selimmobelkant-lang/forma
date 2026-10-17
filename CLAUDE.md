@@ -28,6 +28,13 @@ Forma, kişisel antrenman ve beslenme koçu uygulaması. Arayüz Türkçe. Hedef
 - Samimi ama profesyonel. Kullanıcıya arkadaşı gibi davranma, argo ve laubali ifade kullanma ("Hadi bakalım", "panik yok" gibi). Kullanıcıya adıyla yalnızca üst köşedeki "Merhaba, <ad>" selamlamasında seslenilir; metinlerin içinde ad kullanma.
 - Kaynak isimleri (video sahibi, rapor adları) arayüzde görünmez. Kaynaklar yalnızca Obsidian notlarında durur.
 
+## İki dil (Türkçe / İngilizce)
+- Arayüz Türkçe yazılır; İngilizce, ekrana basılan metni `I18N_EN` sözlüğüyle çeviren katmanla gelir (bölüm: "dil (Türkçe / İngilizce)", sözlük: "çeviri sözlüğü (İngilizce)").
+- Yeni bir Türkçe metin eklediğinde İngilizcesini de `I18N_EN`'e ekle. Sayılar anahtarda `#`, tarihler `@` olur; sıra değişiyorsa `#1`, `#2` kullan. Kodda doğrudan çeviri gerekiyorsa (onay pencereleri, bildirimler): `t('Metin {ad}', { ad })`.
+- Kullanıcı içeriğini (ad, not, özel besin) `data-notr` ile çeviri dışı bırak.
+- `python3 tests/test_ingilizce.py --dump` eksik çevirileri `tests/shots/i18n_eksik.json`'a (bağlamıyla) yazar. Test "hepsi geçti" için eksik 0 olmalı.
+- İngilizce metinler de samimi ama profesyonel; argo yok.
+
 ## Test
 - Her değişiklikten sonra `python3 tests/hepsi.py` çalıştır. Sonuç "hepsi geçti" olmalı ve sayfa hatası çıkmamalı.
 - Tarih gerektiren senaryolar için adrese `?bugun=YYYY-MM-DD` ekle (ör. `index.html?bugun=2026-10-19`).

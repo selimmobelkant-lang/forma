@@ -17,7 +17,7 @@ async def onboard(pg):
 async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch()
-        ctx=await b.new_context(viewport={'width':1440,'height':950})
+        ctx=await b.new_context(locale='tr-TR', viewport={'width':1440,'height':950})
         pg=await ctx.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)))
         await onboard(pg)
         await pg.screenshot(path=SP+'shots/i_today.png')
@@ -34,7 +34,7 @@ async def main():
         await pg.screenshot(path=SP+'shots/i_exinfo.png'); await pg.click('#modal [data-act=closeModal]')
         await pg.click('[data-act=cancelSession]')
         # mobil + neon koyu
-        m=await b.new_context(viewport={'width':400,'height':860}, device_scale_factor=2)
+        m=await b.new_context(locale='tr-TR', viewport={'width':400,'height':860}, device_scale_factor=2)
         mp=await m.new_page(); mp.on('pageerror', lambda e: errs.append(str(e)))
         await onboard(mp)
         await mp.evaluate("S.settings.theme='neon'; S.settings.mode='dark'; save(); applyTheme(); render()")
@@ -49,7 +49,7 @@ async def main():
         await mp.click('.tabs [data-tab=beslenme]'); await mp.wait_for_timeout(300)
         await mp.screenshot(path=SP+'shots/i_m_nutr.png', full_page=True)
         # açılış ekranı, varsayılan tema, günün cümlesi
-        s=await b.new_context(viewport={'width':390,'height':844})
+        s=await b.new_context(locale='tr-TR', viewport={'width':390,'height':844})
         await s.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>false})")
         sp=await s.new_page(); sp.on('pageerror', lambda e: errs.append(str(e)))
         await sp.goto(URL+'?bugun=2026-10-19'); await sp.wait_for_timeout(300)

@@ -13,7 +13,7 @@ def check(ok, msg):
     if not ok: errs.append(msg)
 
 async def onboard(b, sex, age, exp, hip=None, shot=None):
-    c = await b.new_context(viewport={'width':390,'height':844}, is_mobile=True, has_touch=True)
+    c = await b.new_context(locale='tr-TR', viewport={'width':390,'height':844}, is_mobile=True, has_touch=True)
     pg = await c.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)))
     await pg.goto(URL + '?bugun=2026-10-19')
     await pg.fill('#ob_name', 'Test'); await pg.click('[data-act=obNext]')

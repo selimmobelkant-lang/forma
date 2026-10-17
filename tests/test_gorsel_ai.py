@@ -11,7 +11,7 @@ MOCK={"content":[{"type":"text","text":"```json\n{\"items\":[{\"name\":\"Tavuk s
 async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch()
-        ctx=await b.new_context(viewport={'width':1440,'height':950})
+        ctx=await b.new_context(locale='tr-TR', viewport={'width':1440,'height':950})
         pg=await ctx.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)))
         pg.on('dialog', lambda d: asyncio.ensure_future(d.accept()))
         async def handle(route, request):
@@ -54,7 +54,7 @@ async def main():
         print('error shown:', await pg.inner_text('#modal .note.bad'))
         await pg.screenshot(path=SP+'shots/h_ai_error.png')
         # dark mobile session
-        ctx2=await b.new_context(viewport={'width':400,'height':860}, device_scale_factor=2, color_scheme='dark')
+        ctx2=await b.new_context(locale='tr-TR', viewport={'width':400,'height':860}, device_scale_factor=2, color_scheme='dark')
         st = await pg.evaluate("JSON.stringify({ix:localStorage.getItem(PKEY), st:localStorage.getItem(SKEY(PIDX.cur))})")
         await ctx2.add_init_script("var d=%s; if(!localStorage.getItem('forma_profiles')){localStorage.setItem('forma_profiles', d.ix); localStorage.setItem('forma_state_p1', d.st);}" % st)
         m=await ctx2.new_page(); m.on('pageerror', lambda e: errs.append('m:'+str(e)))

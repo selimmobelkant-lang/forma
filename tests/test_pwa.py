@@ -38,7 +38,7 @@ async def main():
             except OSError: await asyncio.sleep(.1)
         async with async_playwright() as p:
             b = await p.chromium.launch()
-            ctx = await b.new_context(viewport={'width':1440,'height':950})
+            ctx = await b.new_context(locale='tr-TR', viewport={'width':1440,'height':950})
             pg = await ctx.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)))
 
             # Eski sürümden kalmış bir önbellek ve başka bir uygulamanın önbelleği (SW kurulmadan önce)
@@ -85,7 +85,7 @@ async def main():
 
             # Telefon: iPhone çentiği ve alt çizgi (güvenli alan) taklidi, açık ve koyu mod
             for mod in ['light', 'dark']:
-                m = await b.new_context(viewport={'width':390,'height':844}, device_scale_factor=2, is_mobile=True, has_touch=True)
+                m = await b.new_context(locale='tr-TR', viewport={'width':390,'height':844}, device_scale_factor=2, is_mobile=True, has_touch=True)
                 mp = await m.new_page(); mp.on('pageerror', lambda e: errs.append(str(e)))
                 cdp = await m.new_cdp_session(mp)
                 try: await cdp.send('Emulation.setSafeAreaInsetsOverride', {'insets': {'top':47, 'bottom':34, 'left':0, 'right':0}}); sa = True

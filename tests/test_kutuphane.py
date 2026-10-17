@@ -21,7 +21,7 @@ async def onboard(pg):
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
-        c = await b.new_context(viewport={'width':390,'height':844}, is_mobile=True, has_touch=True, device_scale_factor=2)
+        c = await b.new_context(locale='tr-TR', viewport={'width':390,'height':844}, is_mobile=True, has_touch=True, device_scale_factor=2)
         pg = await c.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)))
         await onboard(pg)
         st = await pg.evaluate("""(() => { const bad = []; LIB.forEach(e => { if (!EQ[e.eq]) bad.push(e.id + ' eq'); if (!PATTERNS[e.pat]) bad.push(e.id + ' pat'); if (!LEVELS[e.lvl]) bad.push(e.id + ' lvl');
@@ -116,7 +116,7 @@ async def main():
         await c.close()
 
         # eski veri (swaps alanı yok) sorunsuz açılır
-        o = await b.new_context(); op = await o.new_page(); op.on('pageerror', lambda e: errs.append('eski:' + str(e)))
+        o = await b.new_context(locale='tr-TR'); op = await o.new_page(); op.on('pageerror', lambda e: errs.append('eski:' + str(e)))
         await onboard(op)
         await op.evaluate("(() => { const k = 'forma_state_' + JSON.parse(localStorage.getItem('forma_profiles')).cur; const st = JSON.parse(localStorage.getItem(k)); delete st.swaps; localStorage.setItem(k, JSON.stringify(st)); })()")
         await op.reload(); await op.wait_for_timeout(300)

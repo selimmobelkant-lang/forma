@@ -21,7 +21,7 @@ async def checkin(pg, date, w, waist=None, adh=True, creatine=False):
 async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch()
-        ctx=await b.new_context(viewport={'width':430,'height':900})
+        ctx=await b.new_context(locale='tr-TR', viewport={'width':430,'height':900})
         pg=await ctx.new_page()
         pg.on('pageerror', lambda e: errs.append(str(e)))
         pg.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
@@ -124,7 +124,7 @@ async def main():
         await pg.click('.daytile[data-day=LG]')
         await pg.screenshot(path=SP+'13_ppl_legs.png', full_page=True)
         # migration from v1 state
-        ctx2=await b.new_context(viewport={'width':430,'height':900}, color_scheme='dark')
+        ctx2=await b.new_context(locale='tr-TR', viewport={'width':430,'height':900}, color_scheme='dark')
         v1 = {"v":1,"profile":{"name":"X","sex":"m","age":30,"height":180,"weight":90,"act":"moderate","pace":0.5,"goalFatKg":8,"start":"2026-10-10","trainingDays":[1,2,4,5],"reflection":{}},"plan":{"bmr":1900,"tdee":2900,"baseKcal":2350,"kcalAdjust":-200,"stepBonus":0,"cardioStart":120,"cardioCap":300},"checkins":[{"id":"a","date":"2026-10-10","baseline":True,"weight":90,"waist":100,"neck":40,"bf":24,"photos":[]}],"workouts":[{"id":"w","date":"2026-10-12","dayId":"U1","sets":{"latpd":[{"kg":40,"reps":10}]}}],"cardio":[],"days":{},"customFoods":[],"adjustments":[],"settings":{"waterTarget":3,"sleepTarget":7.5,"stepTarget":8000,"bedtime":"23:30"}}
         await ctx2.add_init_script("if(!localStorage.getItem('kocum90_v1')) localStorage.setItem('kocum90_v1', %s)" % json.dumps(json.dumps(v1)))
         pg2=await ctx2.new_page(); pg2.on('pageerror', lambda e: errs.append('v1:'+str(e)))
