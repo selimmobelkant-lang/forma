@@ -1,4 +1,4 @@
-"""Hareket kütüphanesi: katalog, filtre, sürümler, alternatifler, programda değiştirme ve geri dönüş, eski veride swaps."""
+"""Hareket kütüphanesi ve program paketleri: katalog, filtre, sürümler, alternatifler, programda değiştirme ve geri dönüş, eski veride swaps."""
 import asyncio, json
 from playwright.async_api import async_playwright
 from pathlib import Path
@@ -81,6 +81,38 @@ async def main():
         u = await pg.evaluate("(() => { S.swaps.g_splank = 'crunch'; const e = effEx(EX_BY_ID.g_splank); S.swaps = {}; return [e.name, e.unit || 'tekrar', e.lo, e.hi]; })()")
         check(u[1] == 'tekrar' and u[2] == 10, 'süreli hareket tekrarlı hareketle değişince tekrar hedefi ' + str(u))
         check(await pg.evaluate("document.documentElement.scrollWidth <= innerWidth"), 'telefonda yatay taşma yok')
+
+        # program paketleri: her programın her günü hatasız açılır, hareket sayısı doğru
+        info = await pg.evaluate("PROG_ORDER.map(k => [k, PROGRAMS[k].cat, PROGRAMS[k].days.length, PROGRAMS[k].defaultDays.length])")
+        print('programlar', info)
+        check(len(info) >= 10 and len({x[1] for x in info}) >= 6, f'{len(info)} program, {len({x[1] for x in info})} kategori')
+        for k, cat, nd, ndays in info:
+            await pg.evaluate(f"(() => {{ S.profile.program = '{k}'; S.profile.trainingDays = PROGRAMS['{k}'].defaultDays.slice(); UI.session = null; UI.tab = 'antrenman'; render(); }})()")
+            for i in range(nd):
+                await pg.click(f'.daytile >> nth={i}'); await pg.wait_for_timeout(80)
+                got, want = await pg.evaluate("[document.querySelectorAll('.ex').length, DAY_BY_ID[UI.session.dayId].ex.length]")
+                if got != want: errs.append(f'{k} gün {i}: {got}/{want} hareket')
+                await pg.evaluate("UI.session = null; render()")
+        check(not [e for e in errs if ' gün ' in e], 'tüm programların tüm günleri açıldı')
+        bad = await pg.evaluate("Object.values(PROGRAMS).flatMap(p => p.days.flatMap(d => d.ex.filter(e => !e.name || !e.m || !e.sets || !e.lo || !e.hi).map(e => p.id + ':' + e.id)))")
+        check(not bad, 'program hareketlerinde eksik alan yok ' + str(bad[:5]))
+        # seçici: kategoriden programa geç
+        await pg.evaluate("S.profile.program = 'ul4'; S.profile.trainingDays = [1,2,4,5]; UI.tab = 'antrenman'; render()")
+        await pg.click('[data-act=programs]'); await pg.wait_for_timeout(200)
+        await pg.click('#modal [data-act=progCat][data-v=ev]'); await pg.wait_for_timeout(200)
+        await pg.screenshot(path=SP + 'shots/k_programs.png')
+        await pg.click('#modal [data-act=setProgram][data-v=home_bw]'); await pg.wait_for_timeout(300)
+        pr = await pg.evaluate("[S.profile.program, JSON.stringify(S.profile.trainingDays), document.querySelector('.card .hd h3').textContent]")
+        check(pr[0] == 'home_bw' and pr[1] == '[1,3,5]', 'programa geçildi ve günler ayarlandı ' + str(pr))
+        # yeni programda değiştirme ve seans özeti
+        await pg.click('.daytile >> nth=0'); await pg.wait_for_timeout(200)
+        await pg.click('.ex >> nth=1 >> .linkbtn'); await pg.wait_for_timeout(200)
+        presc = await pg.evaluate("document.querySelector('#modal .muted.small')?.textContent || ''")
+        check('3 set × 8–15' in presc, 'reçete aktif programdan geliyor: ' + presc)
+        await pg.click("#modal .vchip:has-text('Dambıl') >> nth=0"); await pg.wait_for_timeout(200)
+        await pg.click('#modal [data-act=swapEx]'); await pg.wait_for_timeout(200)
+        check(await pg.evaluate("S.swaps.incline_pushup") == 'db_bench', 'yeni programda değiştirme')
+        await pg.evaluate("S.swaps = {}; save(); UI.session = null; render()")
         await c.close()
 
         # eski veri (swaps alanı yok) sorunsuz açılır
