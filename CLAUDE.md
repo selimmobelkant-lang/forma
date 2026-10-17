@@ -32,6 +32,10 @@ Forma, kişisel antrenman ve beslenme koçu uygulaması. Arayüz Türkçe. Hedef
 - Görsel değişikliklerde ekran görüntüsü al ve kendin bak (`tests/shots/`). Açık ve koyu modu, masaüstü ve telefon genişliğini kontrol et.
 - Playwright kurulu değilse: `pip3 install playwright` ve ardından `python3 -m playwright install chromium`.
 
+## Yayın
+- Uygulama GitHub Pages'te: https://selimmobelkant-lang.github.io/forma/ (depo `selimmobelkant-lang/forma`, `main` dalı).
+- Sese "yayınla" dediğinde `./yayinla.sh "kısa açıklama"` çalıştır. Betik testleri çalıştırır, `sw.js` içindeki `SURUM`'ü artırır, commit'leyip gönderir ve yayının bitmesini bekler. `SURUM`'ü elle değiştirme.
+
 ## Çalışma biçimi
 - Sese ile Türkçe, sade bir dille konuş. Otomatik kalın yazı kullanma.
 - Büyük işlere başlamadan önce kısa bir plan göster.
