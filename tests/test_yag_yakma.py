@@ -133,6 +133,8 @@ async def main():
         await pg2.click('.tabs [data-tab=antrenman]')
         await pg2.screenshot(path=SP+'15_dark_training.png', full_page=True)
         print('migrated:', await pg2.evaluate("[S.v, S.profile.program, S.settings.rest, S.plan.event, nextWorkoutId()]"))
+        tema = await pg2.evaluate("[document.documentElement.dataset.theme, S.settings.theme]"); print('eski durum teması', tema)
+        if tema != ['ufuk', 'ufuk']: errs.append('eski durumun teması değişti: ' + str(tema))
         await b.close()
     print('ERRORS', errs)
 asyncio.run(main())
