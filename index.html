@@ -757,7 +757,7 @@ const PPL3 = [
 ];
 const PROGRAMS = {
   ul4:{ id:'ul4', name:'4 Gün Üst/Alt', src:'Şahan Yağcı', days:UL4, defaultDays:[1,2,4,5], rec:true,
-        desc:'Önerilen. Kilolu ve yeni başlayanlar için eklem dostu; her kas haftada 2 kez çalışır.' },
+        desc:'Kilolu ve yeni başlayanlar için eklem dostu, makine ağırlıklı; her kas haftada 2 kez çalışır.' },
   ppl3:{ id:'ppl3', name:'3 Gün Push-Pull-Legs', src:'Ağırsağlam', days:PPL3, defaultDays:[1,3,5],
         desc:'Haftada 4 gün ayıramayanlar için. Her kas haftada 1 kez çalışır — setleri tükenişe yakın ve kaliteli yap.' },
 };
@@ -902,10 +902,10 @@ function alternativesOf(e){ const L = libOf(e), pm = primaryMuscle(L); return li
 // kullanıcının değiştirdiği hareketler: S.swaps[programdaki hareket id] = kütüphanedeki hareket id
 function effEx(slot){
   const L = LIB_BY_ID[S?.swaps?.[slot.id]];
-  if (!L || L.id === slot.id) return { ...slot, slot:slot.id };
-  const e = { ...slot, id:L.id, name:L.n, m:L.m, tips:L.tips, lim:L.lim || {}, img:L.img, slot:slot.id, swapped:true };
-  if (TIMED.has(L.id) && slot.unit !== 'sn') Object.assign(e, { unit:'sn', lo:30, hi:45, fail:false, rir:'Süre tut' });
-  if (!TIMED.has(L.id) && slot.unit === 'sn') Object.assign(e, { unit:undefined, lo:10, hi:15, fail:true });
+  const e = !L || L.id === slot.id ? { ...slot, slot:slot.id } : { ...slot, id:L.id, name:L.n, m:L.m, tips:L.tips, lim:L.lim || {}, img:L.img, slot:slot.id, swapped:true };
+  if (L && L.id !== slot.id && TIMED.has(L.id) && slot.unit !== 'sn') Object.assign(e, { unit:'sn', lo:30, hi:45, fail:false, rir:'Süre tut' });
+  if (L && L.id !== slot.id && !TIMED.has(L.id) && slot.unit === 'sn') Object.assign(e, { unit:undefined, lo:10, hi:15, fail:true });
+  if (e.fail && typeof noFailFor === 'function' && noFailFor(S?.profile)) Object.assign(e, { fail:false, rir:S.profile.age < 18 ? '2–3 tekrar yedek' : '1–3 tekrar yedek' });
   return e;
 }
 const dayEx = d => d.ex.map(effEx);
@@ -1142,14 +1142,19 @@ const ACT = {
   very:     {f:1.9,   l:'Aşırı aktif', d:'Fiziksel iş + günlük antrenman'},
 };
 const KCAL_PER_KG = 7700;
-const bmrOf = (sex, w, h, a) => Math.round(10*w + 6.25*h - 5*a + (sex === 'f' ? -161 : 5));
+// Cinsiyet: 'f' kadın, 'm' erkek, 'x' belirtmek istemiyor (iki formülün ortalaması)
+const bmrOf = (sex, w, h, a) => Math.round(10*w + 6.25*h - 5*a + (sex === 'f' ? -161 : sex === 'x' ? -78 : 5));
 const tdeeOf = (bmr, act) => Math.round(bmr * (ACT[act]?.f || 1.55));
 const paceKcal = (tdee, pace) => Math.round(tdee - pace * KCAL_PER_KG / 7);
-const minKcal = sex => sex === 'f' ? 1200 : 1500;
+const minKcal = sex => sex === 'm' ? 1500 : 1200;
 function bodyFat(sex, h, waist, neck, hip){
   if (!h || !waist || !neck) return null; let bf;
-  if (sex === 'f'){ if (!hip || waist + hip - neck <= 0) return null; bf = 495 / (1.29579 - 0.35004*Math.log10(waist + hip - neck) + 0.22100*Math.log10(h)) - 450; }
-  else { if (waist - neck <= 0) return null; bf = 495 / (1.0324 - 0.19077*Math.log10(waist - neck) + 0.15456*Math.log10(h)) - 450; }
+  const fem = () => (!hip || waist + hip - neck <= 0) ? null : 495 / (1.29579 - 0.35004*Math.log10(waist + hip - neck) + 0.22100*Math.log10(h)) - 450;
+  const mal = () => (waist - neck <= 0) ? null : 495 / (1.0324 - 0.19077*Math.log10(waist - neck) + 0.15456*Math.log10(h)) - 450;
+  if (sex === 'f') bf = fem();
+  else if (sex === 'x'){ const a = mal(), b = fem(); bf = a != null && b != null ? (a + b) / 2 : a; }
+  else bf = mal();
+  if (bf == null) return null;
   return isFinite(bf) ? Math.round(clamp(bf, 3, 60) * 10) / 10 : null;
 }
 function bandFor(bf, pace){
@@ -1769,14 +1774,15 @@ function viewOnboarding(){
     body = `<div class="kicker">Adım 1 · Ölçüler</div><h2>Bugünkü durumun</h2>
     <div class="note small" style="margin:12px 0">Sabah uyan → tuvalete git → aç karnına, iç çamaşırıyla tartıl. Ölçüleri <b>mezura</b> ile al. Gün içinde yemekten sonra ölçme.</div>
     <div class="field"><label class="f">Cinsiyet</label>
-      <div class="row"><label class="chk"><input type="radio" name="ob_sex" value="m" ${o.sex !== 'f' ? 'checked' : ''}> Erkek</label><label class="chk"><input type="radio" name="ob_sex" value="f" ${o.sex === 'f' ? 'checked' : ''}> Kadın</label></div></div>
+      <div class="row"><label class="chk"><input type="radio" name="ob_sex" value="f" ${o.sex === 'f' ? 'checked' : ''}> Kadın</label><label class="chk"><input type="radio" name="ob_sex" value="m" ${!o.sex || o.sex === 'm' ? 'checked' : ''}> Erkek</label><label class="chk"><input type="radio" name="ob_sex" value="x" ${o.sex === 'x' ? 'checked' : ''}> Belirtmek istemiyorum</label></div>
+      <p class="muted tiny" style="margin:2px 0 0">Kalori ve yağ oranı formülleri cinsiyete göre değişir. "Belirtmek istemiyorum" seçilirse iki formülün ortalaması kullanılır.</p></div>
     <div class="grid2">
       <div class="field"><label class="f">Yaş</label><div class="unit"><input type="text" inputmode="numeric" id="ob_age" value="${o.age ?? ''}"><em>yaş</em></div></div>
       <div class="field"><label class="f">Boy</label><div class="unit"><input type="text" inputmode="decimal" id="ob_height" value="${o.height ?? ''}"><em>cm</em></div></div>
       <div class="field"><label class="f">Kilo (sabah, aç)</label><div class="unit"><input type="text" inputmode="decimal" id="ob_weight" value="${o.weight ?? ''}"><em>kg</em></div></div>
       <div class="field"><label class="f">Bel (göbek hizası)</label><div class="unit"><input type="text" inputmode="decimal" id="ob_waist" value="${o.waist ?? ''}"><em>cm</em></div></div>
       <div class="field"><label class="f">Boyun (adem elması hizası)</label><div class="unit"><input type="text" inputmode="decimal" id="ob_neck" value="${o.neck ?? ''}"><em>cm</em></div></div>
-      <div class="field ${o.sex === 'f' ? '' : 'hidden'}" id="ob_hipwrap"><label class="f">Kalça (en geniş yer)</label><div class="unit"><input type="text" inputmode="decimal" id="ob_hip" value="${o.hip ?? ''}"><em>cm</em></div></div>
+      <div class="field ${o.sex === 'f' || o.sex === 'x' ? '' : 'hidden'}" id="ob_hipwrap"><label class="f">Kalça (en geniş yer)</label><div class="unit"><input type="text" inputmode="decimal" id="ob_hip" value="${o.hip ?? ''}"><em>cm</em></div></div>
     </div>
     <p class="muted tiny">Bel ve boyun ölçüsü yağ oranını tahmin etmek için kullanılır (ABD Donanması formülü). Bilmiyorsan boş bırak, sonra eklersin.</p>
     ${nav()}`;
@@ -1802,7 +1808,7 @@ function viewOnboarding(){
     ${nav()}`;
   }
   if (s === 3){
-    const prog = o.prog || 'ul4'; const td = o.days || PROGRAMS[prog].defaultDays; const lim = o.limits || {};
+    const rec = recProgram(o.age, o.exp || 'mid'); const prog = o.prog || rec; const td = o.days || PROGRAMS[prog].defaultDays; const lim = o.limits || {};
     const G = GOALS[o.goalType || 'cut']; const wks = o.weeks !== undefined ? o.weeks : (G.defWeeks || 0);
     body = `<div class="kicker">Adım 3 · Program ve takvim</div><h2>Dönemini planla</h2>
     <div class="grid3" style="margin-top:12px">
@@ -1810,8 +1816,10 @@ function viewOnboarding(){
       <div class="field"><label class="f">Dönem süresi</label><select id="ob_weeks">${WEEK_OPTS.map(([v, l]) => `<option value="${v}" ${v === (wks || 0) ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="field"><label class="f">Başlangıç günü</label><input type="date" id="ob_start" value="${o.start || today()}"></div>
     </div>
+    <div class="field"><label class="f">Antrenman deneyimin</label><select id="ob_exp">${Object.entries(EXP).map(([k, l]) => `<option value="${k}" ${k === (o.exp || 'mid') ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    ${ageNote({ age:o.age, exp:o.exp || 'mid' }) ? `<div class="note warn small" style="margin-bottom:10px">${ageNote({ age:o.age, exp:o.exp || 'mid' })}</div>` : ''}
     <label class="f">Antrenman programı</label>
-    ${Object.entries(PROG_CATS).map(([c, cl]) => `<div class="kicker" style="margin:12px 0 6px">${cl}</div>` + PROG_ORDER.map(k => PROGRAMS[k]).filter(p => p.cat === c).map(p => `<label class="opt"><div class="row"><input type="radio" name="ob_prog" value="${p.id}" ${p.id === prog ? 'checked' : ''}><b>${p.name}</b>${p.rec ? '<span class="pill acc" style="margin-left:auto">önerilen</span>' : ''}</div><div class="small muted" style="margin-top:4px">${esc(p.desc)}</div><div class="tiny muted" style="margin-top:4px">${p.defaultDays.length} gün/hafta · ${LEVELS[p.lvl]} · ${esc(p.need)}</div></label>`).join('')).join('')}
+    ${Object.entries(PROG_CATS).map(([c, cl]) => `<div class="kicker" style="margin:12px 0 6px">${cl}</div>` + PROG_ORDER.map(k => PROGRAMS[k]).filter(p => p.cat === c).map(p => `<label class="opt"><div class="row"><input type="radio" name="ob_prog" value="${p.id}" ${p.id === prog ? 'checked' : ''}><b>${p.name}</b>${p.id === rec ? '<span class="pill acc" style="margin-left:auto">önerilen</span>' : ''}</div><div class="small muted" style="margin-top:4px">${esc(p.desc)}</div><div class="tiny muted" style="margin-top:4px">${p.defaultDays.length} gün/hafta · ${LEVELS[p.lvl]} · ${esc(p.need)}</div></label>`).join('')).join('')}
     <div class="field"><label class="f">Antrenman günlerin</label>
       <div class="daypick">${[1,2,3,4,5,6,0].map(i => `<label><input type="checkbox" name="ob_days" value="${i}" ${td.includes(i) ? 'checked' : ''}><span>${WD[i]}</span></label>`).join('')}</div></div>
     <div class="field"><label class="f">Ağrı / kısıt var mı? (hareketlere uyarı ve alternatif ekler)</label>
@@ -1831,7 +1839,7 @@ function viewOnboarding(){
   return `<div class="ob"><div class="row" style="margin-bottom:16px"><div class="brand grow"><div class="logo"></div><div>${APP_NAME}<small>Antrenman ve beslenme koçu</small></div></div>${PIDX && PIDX.list.length > 1 ? `<button class="btn ghost sm" data-act="profiles">Profiller</button>` : ''}<button class="iconbtn" data-act="appearance" aria-label="Görünüm">${icon('palette')}</button></div><div class="obcard">${steps}${body}</div></div>`;
 }
 function obSnap3(){ const o = UI.ob; o.goal = num($('#ob_goal')?.value); o.start = $('#ob_start')?.value || today(); o.weeks = num($('#ob_weeks')?.value) || 0;
-  o.days = $$('input[name=ob_days]:checked').map(x => +x.value); o.prog = $('input[name=ob_prog]:checked')?.value || 'ul4';
+  o.days = $$('input[name=ob_days]:checked').map(x => +x.value); o.prog = $('input[name=ob_prog]:checked')?.value || 'ul4'; o.exp = $('#ob_exp')?.value || o.exp || 'mid';
   o.limits = Object.fromEntries($$('input[name=ob_lim]:checked').map(x => [x.value, true])); }
 function obRead(){
   const o = UI.ob, s = UI.obStep, v = id => $('#' + id)?.value;
@@ -1853,7 +1861,7 @@ function finishOnboarding(){
   const bmr = bmrOf(o.sex, o.weight, o.height, o.age), tdee = tdeeOf(bmr, o.act);
   const goal = o.goalType || 'cut'; const base = baseKcalFor(goal, tdee, o.pace, o.sex);
   S.profile = { name:o.name || '', sex:o.sex, age:o.age, height:o.height, weight:o.weight, act:o.act, pace:o.pace, goal, weeks:o.weeks || null,
-    goalKg: GOALS[goal].amountLabel ? o.goal : null, start:o.start, trainingDays:o.days.sort(), program:o.prog || 'ul4', limits:o.limits || {}, reflection:{ r1:o.r1, r2:o.r2, r3:o.r3 } };
+    goalKg: GOALS[goal].amountLabel ? o.goal : null, start:o.start, trainingDays:o.days.sort(), program:o.prog || 'ul4', exp:o.exp || 'mid', limits:o.limits || {}, reflection:{ r1:o.r1, r2:o.r2, r3:o.r3 } };
   S.plan = { bmr, tdee, baseKcal:base, kcalAdjust:0, stepBonus:0, cardioStart: goal === 'gain' ? 60 : 120, cardioCap:300, event:null };
   const bf = bodyFat(o.sex, o.height, o.waist, o.neck, o.hip);
   S.checkins = [{ id:uid(), date:o.start, baseline:true, weight:o.weight, waist:o.waist, neck:o.neck, hip:o.hip, bf, photos:[] }];
@@ -2008,6 +2016,19 @@ const SOS = {
 };
 
 /* ---------- ANTRENMAN ---------- */
+/* ---------- yaş ve deneyime göre antrenman kuralları ---------- */
+const EXP = { new:'Yeni başlıyorum (ya da 1 yıldan uzun ara verdim)', mid:'6 ay – 2 yıl', pro:'2 yıldan fazla' };
+// 60+ için eklem dostu, yeni başlayan için makineyle tüm vücut, diğerleri için 4 gün üst/alt önerilir
+const recProgram = (age, exp) => age >= 60 ? 'joint3' : exp === 'new' ? 'fb_mc' : 'ul4';
+// 18 yaş altı, 65 yaş ve üstü ve yeni başlayanlar tükenişe kadar çalışmaz; tekrar yedek bırakır
+function noFailFor(pr){ return !!pr && (pr.age < 18 || pr.age >= 65 || pr.exp === 'new'); }
+function ageNote(pr){
+  if (!pr) return '';
+  if (pr.age < 18) return '18 yaş altındasın: setleri tükenişe götürme, 2–3 tekrar yedek bırak ve önce tekniği öğren. Ağır barbell hareketlerini bir antrenör eşliğinde yap. Kalori açığı yerine koruma ya da kas kazanma hedefi daha uygundur; kilo vermek istiyorsan önce doktoruna danış.';
+  if (pr.age >= 65) return '65 yaş ve üstü: setlerde 1–3 tekrar yedek bırak, ağırlığı yavaş artır. Isınmada denge çalışmasını atlama, gerekirse bir yere tutun. Yeni bir programa başlamadan önce doktoruna danış.';
+  if (pr.exp === 'new') return 'Yeni başladığın için ilk haftalarda tükenişe gitmiyoruz: her sette 1–3 tekrar yedek bırak, tekniği otur. Ağırlık her hafta küçük adımlarla artar.';
+  return '';
+}
 /* ---------- program seçici ---------- */
 function programsModal(sel){
   const cur = S.profile.program; sel = sel || UI.progCat || PROGRAMS[cur]?.cat || 'baslangic';
@@ -2061,6 +2082,7 @@ function viewTraining(){
     <div class="row" style="margin:-4px 0 10px"><span class="small muted grow">${PROG_CATS[pr.cat] || ''} · ${LEVELS[pr.lvl] || ''} · ${esc(pr.need || '')}</span><button class="btn ghost sm" data-act="programs">Programı değiştir</button></div>
     ${pr.id === 'ppl3' ? `<div class="note warn small" style="margin-bottom:10px">3 günlük PPL’de her kas haftada 1 kez çalışır. Haftada 4 gün ayırabildiğinde 4 Gün Üst/Alt’a geç.</div>` : ''}
     ${S.profile.trainingDays.length < pr.defaultDays.length ? `<div class="note warn small" style="margin-bottom:10px">Bu program haftada ${pr.defaultDays.length} gün için kurulu; sen ${S.profile.trainingDays.length} gün seçtin. Günler sırayla kayar, sorun değil; ama haftada daha az gün için başka bir program daha uygun olabilir.</div>` : ''}
+    ${ageNote(S.profile) ? `<div class="note small" style="margin-bottom:10px">${ageNote(S.profile)}</div>` : ''}
     ${lims.length ? `<div class="small muted" style="margin-bottom:8px">Kısıtların: ${lims.map(k => `<span class="pill warn">${LIMITS[k]}</span>`).join(' ')} — ilgili hareketlerde alternatif gösterilir.</div>` : ''}
     ${pr.days.map(d => `<div class="daytile ${d.id === nextId ? 'next' : ''}" data-act="startWorkout" data-day="${d.id}">
       <div class="tag" style="color:${d.id === nextId ? 'var(--accent)' : 'var(--muted)'}">${d.short}</div>
@@ -2234,7 +2256,7 @@ function viewNutrition(){
 /* ---------- KONTROL ---------- */
 function viewCheckin(){
   const lc = lastCheckin(); const t = today(); const since = diffDays(lc.date, t);
-  const sexF = S.profile.sex === 'f';
+  const sexF = S.profile.sex === 'f' || S.profile.sex === 'x';
   const hist = [...S.checkins].reverse().filter(c => !c.baseline && c.decision);
   return `
   <section class="card">
@@ -2425,6 +2447,8 @@ function viewSettings(){
     <div class="grid2">
       <div class="field"><label class="f">Ad</label><input type="text" id="s_name" value="${esc(p.name)}"></div>
       <div class="field"><label class="f">Yaş</label><input type="text" inputmode="numeric" id="s_age" value="${p.age}"></div>
+      <div class="field"><label class="f">Cinsiyet</label><select id="s_sex">${[['f','Kadın'],['m','Erkek'],['x','Belirtmek istemiyorum']].map(([k, l]) => `<option value="${k}" ${k === (p.sex || 'm') ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="field"><label class="f">Antrenman deneyimi</label><select id="s_exp">${Object.entries(EXP).map(([k, l]) => `<option value="${k}" ${k === (p.exp || 'mid') ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="field"><label class="f">Boy (cm)</label><input type="text" inputmode="decimal" id="s_height" value="${p.height}"></div>
       ${GOALS[goalOf()].amountLabel ? `<div class="field"><label class="f">${goalOf() === 'gain' ? 'Kazanım hedefi (kg)' : 'Yağ hedefi (kg)'}</label><input type="text" inputmode="decimal" id="s_goal" value="${p.goalKg ?? ''}"></div>` : ''}
       <div class="field"><label class="f">Aktivite</label><select id="s_act">${Object.entries(ACT).map(([k, v]) => `<option value="${k}" ${k === p.act ? 'selected' : ''}>${v.l}</option>`).join('')}</select></div>
@@ -2750,7 +2774,7 @@ const A = {
   applyDecision(el){ const opt = el.dataset.opt; applyDecision(el.dataset.id, opt); closeModal(true); render(); if (opt === 'newBlock') A.newBlock(); else toast('Plan güncellendi'); },
   async delCheckin(el){ if (!confirm('Bu ölçüm silinsin mi? (Uygulanan kalori ayarı geri alınmaz)')) return; const ci = S.checkins.find(c => c.id === el.dataset.id);
     for (const p of ci?.photos || []) await Photos.del(`${ci.id}_${p}`); S.checkins = S.checkins.filter(c => c.id !== el.dataset.id); save(); render(); },
-  saveProfile(){ const p = S.profile; p.name = val('s_name') || ''; p.age = num(val('s_age')) || p.age; p.height = num(val('s_height')) || p.height;
+  saveProfile(){ const p = S.profile; p.name = val('s_name') || ''; p.age = num(val('s_age')) || p.age; p.sex = val('s_sex') || p.sex; p.exp = val('s_exp') || p.exp; p.height = num(val('s_height')) || p.height;
     if ($('#s_goal')) p.goalKg = num(val('s_goal')); p.act = val('s_act'); if ($('#s_pace')) p.pace = num(val('s_pace')); p.start = val('s_start') || p.start;
     const prog = val('s_prog'); const progChanged = prog !== p.program; p.program = prog;
     const days = $$('input[name=s_days]:checked').map(x => +x.value); if (days.length) p.trainingDays = days.sort();
@@ -2786,7 +2810,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', async e => {
   const el = e.target;
-  if (el.name === 'ob_sex'){ $('#ob_hipwrap')?.classList.toggle('hidden', el.value !== 'f'); }
+  if (el.name === 'ob_sex'){ $('#ob_hipwrap')?.classList.toggle('hidden', el.value === 'm'); }
   if (el.id === 'ob_act'){ UI.ob.act = el.value; const pc = $('input[name=ob_pace]:checked'); if (pc) UI.ob.pace = num(pc.value); render(); }
   if (el.name === 'ob_pace'){ UI.ob.pace = num(el.value); }
   if (el.name === 'ob_goaltype'){ UI.ob.act = $('#ob_act')?.value || UI.ob.act; UI.ob.goalType = el.value; UI.ob.pace = GOALS[el.value].defPace; UI.ob.weeks = GOALS[el.value].defWeeks || 0; render(); }
@@ -2799,7 +2823,8 @@ document.addEventListener('change', async e => {
     if (k === 'grams'){ const g = num(el.value); if (g != null && g >= 0 && it.grams > 0){ const f = g / it.grams; it.kcal *= f; it.p *= f; it.c *= f; it.f *= f; } it.grams = g ?? it.grams; }
     modal(aiModalHTML(), true); }
   if (el.name === 'nb_goal'){ nbSnap(); UI.nb.goal = el.value; UI.nb.pace = GOALS[el.value].defPace; UI.nb.weeks = GOALS[el.value].defWeeks || 0; modal(newBlockModal()); }
-  if (el.name === 'ob_prog'){ obSnap3(); UI.ob.days = PROGRAMS[el.value].defaultDays.slice(); render(); }
+  if (el.name === 'ob_prog'){ obSnap3(); UI.ob.progPicked = true; UI.ob.days = PROGRAMS[el.value].defaultDays.slice(); render(); }
+  if (el.id === 'ob_exp'){ obSnap3(); if (!UI.ob.progPicked){ UI.ob.prog = recProgram(UI.ob.age, UI.ob.exp); UI.ob.days = PROGRAMS[UI.ob.prog].defaultDays.slice(); } render(); }
   if (el.dataset.field){ const l = dayLog(el.dataset.date); const v = num(el.value); l[el.dataset.field] = v == null ? null : (el.dataset.field === 'steps' ? Math.round(v) : v); save(); toast('Kaydedildi'); }
   if (el.dataset.ex && UI.session){
     const s = UI.session, ex = el.dataset.ex, i = +el.dataset.i; s.sets[ex] = s.sets[ex] || []; s.sets[ex][i] = s.sets[ex][i] || {};
