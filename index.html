@@ -124,6 +124,7 @@ html[data-theme='zumrut']{
   --accent-bg:oklch(0.925 0.045 138); --border:oklch(0.885 0.018 145); --input:oklch(0.86 0.018 145); --ring:oklch(0.62 0.18 140);
   --chart-1:oklch(0.58 0.16 146); --chart-2:oklch(0.78 0.2 130); --chart-3:oklch(0.6 0.2 25); --chart-4:oklch(0.76 0.15 80); --chart-5:oklch(0.4 0.08 162);
   --sidebar:oklch(0.935 0.018 145); --sidebar-border:oklch(0.87 0.02 145);
+  --viz-1:oklch(0.56 0.16 146); --viz-2:oklch(0.36 0.08 157); --viz-3:oklch(0.78 0.18 128);
 }
 html[data-theme='zumrut'].dark{
   --background:oklch(0.165 0.022 158); --foreground:oklch(0.955 0.012 140); --card:oklch(0.21 0.028 157);
@@ -132,10 +133,12 @@ html[data-theme='zumrut'].dark{
   --accent-bg:oklch(0.3 0.06 150); --border:oklch(0.3 0.034 157); --input:oklch(0.34 0.034 157); --ring:oklch(0.86 0.22 135);
   --chart-1:oklch(0.86 0.22 135); --chart-2:oklch(0.66 0.15 158); --chart-3:oklch(0.7 0.18 25); --chart-4:oklch(0.82 0.15 85); --chart-5:oklch(0.72 0.11 190);
   --sidebar:oklch(0.14 0.02 158); --sidebar-border:oklch(0.26 0.03 157);
+  --viz-1:oklch(0.86 0.22 135); --viz-2:oklch(0.55 0.13 152); --viz-3:oklch(0.82 0.11 155);
 }
 
 /* ortak anlamsal renkler + derinlik */
 html{
+  --viz-1:var(--chart-1); --viz-2:var(--chart-2); --viz-3:var(--chart-5);
   --good:oklch(0.52 0.13 150); --warn:oklch(0.58 0.13 70); --bad:oklch(0.56 0.2 27);
   --z1:oklch(0.62 0.09 250); --z2:oklch(0.75 0.14 90); --z3:oklch(0.68 0.17 45); --z4:oklch(0.6 0.2 25); --z5:oklch(0.52 0.17 310);
   --hi:inset 0 1px 0 oklch(1 0 0 / .8), inset 0 -1px 0 oklch(0 0 0 / .04);
@@ -566,6 +569,8 @@ details summary .hic svg{width:17px;height:17px}
 .vchip.on{background:var(--primary);color:var(--primary-foreground);border-color:transparent}
 .langseg{margin-right:8px}
 .langseg button{min-width:38px}
+.chartbox{position:relative;width:100%;min-width:0}
+.chartbox canvas{display:block}
 </style>
 </head>
 <body>
@@ -574,6 +579,7 @@ details summary .hic svg{width:17px;height:17px}
 <div id="root"></div>
 <div id="restbar" class="restbar" aria-live="polite"><span class="small">Dinlen</span><span class="t num" id="restT">0:00</span><button data-act="restAdd">+30 sn</button><button data-act="restStop">Bitir</button></div>
 <div id="toast" class="toast"></div>
+<script src="vendor/chart.umd.min.js"></script>
 
 <script>
 "use strict";
@@ -1528,6 +1534,144 @@ function finishJW(done){
   render();
 }
 
+/* ---------- grafikler (Chart.js) ---------- */
+// vendor/chart.umd.min.js: Chart.js 4.5.1 (MIT), yerel dosya; internetsiz çalışır. Yüklenemezse grafiklerin yerine not görünür.
+// Kullanım: şablona chartSlot(id, () => ayar, yükseklik, etiket) koy; afterRender → mountCharts() grafikleri kurar.
+// Renkler temadan okunur (--viz-1..3, --border...). Grafik içindeki yazılar sayfa metni değildir: t() ile çevrilir.
+const CHART_CFG = {}; let CHARTS = [];
+// Yakılan kalori tahmini: (MET − 1) × kilo × saat (dinlenme harcaması düşülür). Bkz. Kural Kitabı.
+const MET = { agirlik:5, 'Eğimli yürüyüş':6, 'Tempolu yürüyüş':4.3, 'Japon aralıklı yürüyüş':5, 'Bisiklet':6.8, 'Eliptik':5, 'Dış mekân yürüyüş':3.5, 'Diğer':4 };
+const kcalOf = (met, min, kg) => Math.max(0, Math.round((met - 1) * kg * (min || 0) / 60));
+const COLOR_CACHE = new Map();
+function themeColor(v, a = 1){
+  const raw = v.startsWith('--') ? getComputedStyle(document.documentElement).getPropertyValue(v).trim() : v;
+  const key = raw + '|' + a; if (COLOR_CACHE.has(key)) return COLOR_CACHE.get(key);
+  const c = themeColor.ctx || (themeColor.ctx = document.createElement('canvas').getContext('2d', { willReadFrequently:true }));
+  c.clearRect(0, 0, 1, 1); c.fillStyle = '#808080'; c.fillStyle = raw || '#808080'; c.fillRect(0, 0, 1, 1);
+  const [r, g, b] = c.getImageData(0, 0, 1, 1).data; const out = `rgba(${r},${g},${b},${a})`;
+  COLOR_CACHE.set(key, out); return out;
+}
+const weekLbl = w => LANG === 'en' ? `Wk ${w}` : `${w}. hf`;
+// Keskin, bulanıklıksız gölge: çubuk ve çizgilere hafif derinlik verir
+const CHART_SHADOW = { id:'formaShadow',
+  beforeDatasetDraw(ch){ const c = ch.ctx; c.save(); c.shadowColor = themeColor('--foreground', isDark() ? .6 : .2); c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 3; },
+  afterDatasetDraw(ch){ ch.ctx.restore(); } };
+function chartDefaults(){
+  const C = Chart.defaults, cs = getComputedStyle(document.documentElement);
+  C.font.family = cs.getPropertyValue('--font').trim() || 'system-ui'; C.font.size = 11.5;
+  C.color = themeColor('--muted-foreground'); C.borderColor = themeColor('--border');
+  C.responsive = true; C.maintainAspectRatio = false;
+  C.animation.duration = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 450;
+  C.interaction.mode = 'index'; C.interaction.intersect = false;
+  const tp = C.plugins.tooltip;
+  Object.assign(tp, { backgroundColor:themeColor('--card'), titleColor:themeColor('--foreground'), bodyColor:themeColor('--foreground'), borderColor:themeColor('--viz-1'),
+    borderWidth:1, cornerRadius:3, padding:9, caretSize:5, boxPadding:4, usePointStyle:true });
+  tp.titleFont = { weight:'600' };
+  Object.assign(C.plugins.legend.labels, { boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:'rectRounded', padding:14 });
+  C.elements.bar.borderRadius = 2; C.elements.bar.borderSkipped = 'start';
+  C.elements.line.borderWidth = 2.5; C.elements.line.cubicInterpolationMode = 'monotone';
+  C.scale.ticks.maxRotation = 0; C.scale.ticks.autoSkipPadding = 10; C.elements.point.radius = 3; C.elements.point.hoverRadius = 6; C.elements.point.hitRadius = 14;
+}
+function chartSlot(id, cfg, h = 220, label = '', fallback = ''){
+  CHART_CFG[id] = cfg;
+  if (!window.Chart) return fallback || `<p class="muted small">Grafik yüklenemedi.</p>`;
+  return `<div class="chartbox" style="height:${h}px"><canvas data-chart="${id}" role="img" aria-label="${esc(label)}"></canvas></div>`;
+}
+function mountCharts(root = document){
+  CHARTS = CHARTS.filter(c => { if (c.canvas && c.canvas.isConnected) return true; c.destroy(); return false; });
+  if (!window.Chart) return;
+  if (!Chart.registry.plugins.get('formaShadow')) Chart.register(CHART_SHADOW);
+  chartDefaults();
+  root.querySelectorAll('canvas[data-chart]:not([data-ready])').forEach(cv => {
+    const f = CHART_CFG[cv.dataset.chart]; if (!f) return; cv.dataset.ready = '1';
+    try { CHARTS.push(new Chart(cv, f())); } catch(e){ console.warn('grafik', cv.dataset.chart, e); }
+  });
+}
+// dolgu: çizginin altında yukarıdan aşağı solan renk
+const fadeFill = v => ctx => { const { chart } = ctx, a = chart.chartArea; if (!a) return themeColor(v, .2);
+  const g = chart.ctx.createLinearGradient(0, a.top, 0, a.bottom); g.addColorStop(0, themeColor(v, .34)); g.addColorStop(1, themeColor(v, 0)); return g; };
+
+/* haftalık aktivite (BUGÜN) */
+function weekActivity(wk){
+  const s0 = addDays(startDate(), (wk - 1) * 7), kg = currentWeight() || 75;
+  return Array.from({ length:7 }, (_, i) => { const d = addDays(s0, i);
+    const wMin = S.workouts.filter(w => w.date === d).reduce((a, w) => a + (w.duration || 0), 0);
+    const cs = S.cardio.filter(c => c.date === d), cMin = cs.reduce((a, c) => a + (c.min || 0), 0);
+    const kcal = kcalOf(MET.agirlik, wMin, kg) + cs.reduce((a, c) => a + kcalOf(MET[c.type] ?? MET['Diğer'], c.min, kg), 0);
+    return { d, wMin, cMin, kcal }; });
+}
+function weekCardHTML(wk){
+  const a = weekActivity(wk), tm = a.reduce((x, y) => x + y.wMin + y.cMin, 0), tk = a.reduce((x, y) => x + y.kcal, 0), ad = a.filter(x => x.wMin + x.cMin > 0).length;
+  return `<section class="card"><div class="hd"><h3>Bu hafta</h3><span class="sub">${wk}. hafta · antrenman ve kardiyo</span></div>
+    <div class="grid3 st" style="margin-bottom:10px">
+      <div class="stat"><div class="l">Aktif gün</div><div class="v num">${ad}<small> / 7</small></div></div>
+      <div class="stat"><div class="l">Toplam süre</div><div class="v num">${fmt(tm)}<small> dk</small></div></div>
+      <div class="stat"><div class="l">Yakılan</div><div class="v num">${fmt(tk)}<small> kcal</small></div><div class="d">tahmini</div></div></div>
+    ${chartSlot('week', () => ({ type:'bar',
+      data:{ labels:a.map(x => wd(parseISO(x.d).getDay())), datasets:[
+        { label:t('Ağırlık (dk)'), data:a.map(x => x.wMin), backgroundColor:themeColor('--viz-1'), stack:'dk', yAxisID:'y', order:2 },
+        { label:t('Kardiyo (dk)'), data:a.map(x => x.cMin), backgroundColor:themeColor('--viz-2'), stack:'dk', yAxisID:'y', order:2 },
+        { type:'line', label:t('Kalori (tahmini)'), data:a.map(x => x.kcal), borderColor:themeColor('--viz-3'), backgroundColor:themeColor('--viz-3'), pointBackgroundColor:themeColor('--card'), pointBorderWidth:2, yAxisID:'y1', order:1 } ] },
+      options:{ scales:{ x:{ stacked:true, grid:{ display:false }, ticks:{ autoSkip:false } },
+          y:{ stacked:true, beginAtZero:true, suggestedMax:60, ticks:{ precision:0 }, title:{ display:true, text:t('dk') } },
+          y1:{ position:'right', beginAtZero:true, suggestedMax:300, grid:{ display:false }, title:{ display:true, text:'kcal' } } },
+        plugins:{ legend:{ labels:{ sort:(x, y) => (x.datasetIndex === 2) - (y.datasetIndex === 2) || x.datasetIndex - y.datasetIndex } }, tooltip:{ itemSort:(x, y) => y.datasetIndex === 2 ? -1 : x.datasetIndex === 2 ? 1 : x.datasetIndex - y.datasetIndex, callbacks:{ title:it => fmtDateL(a[it[0].dataIndex].d), label:c => ` ${c.dataset.label}: ${fmt(c.parsed.y)}` } } } } }), 220, t('Haftalık aktivite'))}
+    <p class="muted tiny" style="margin:8px 0 0">Kalori tahminidir: süre × hareketin yoğunluğu (MET) × kilon; dinlenirken harcadığın düşülmüştür. Beslenme hedefini değiştirmez.</p></section>`;
+}
+
+/* kas dağılımı (ANTRENMAN) */
+function muscleRadarHTML(wk){
+  const wv = weekVolume(wk), pv = plannedVolume(), ms = Object.keys(MUSCLES);
+  const top = ms.filter(m => wv.vol[m]).sort((x, y) => wv.vol[y] - wv.vol[x]).slice(0, 3);
+  return `<section class="card"><div class="hd"><h3>Kas dağılımı</h3><span class="sub">${wk}. hafta · sert set</span></div>
+    ${chartSlot('radar', () => ({ type:'radar',
+      data:{ labels:ms.map(m => t(MUSCLES[m])), datasets:[
+        { label:t('Bu hafta'), data:ms.map(m => Math.round((wv.vol[m] || 0) * 10) / 10), borderColor:themeColor('--viz-1'), backgroundColor:themeColor('--viz-1', .22), pointBackgroundColor:themeColor('--viz-1'), borderWidth:2.5 },
+        { label:t('Program hedefi'), data:ms.map(m => Math.round((pv[m] || 0) * 10) / 10), borderColor:themeColor('--viz-3'), backgroundColor:'transparent', borderDash:[5, 4], pointRadius:2, borderWidth:2 } ] },
+      options:{ scales:{ r:{ beginAtZero:true, suggestedMax:10, angleLines:{ color:themeColor('--border') }, grid:{ color:themeColor('--border') },
+          pointLabels:{ color:themeColor('--foreground'), font:{ size:11, weight:'500' } }, ticks:{ display:false, stepSize:5 } } },
+        plugins:{ tooltip:{ callbacks:{ label:c => ` ${c.dataset.label}: ${fmt(c.parsed.r, 1)} ${t('set')}` } } } } }), 320, t('Kas dağılımı'))}
+    <p class="muted small" style="margin:6px 0 0">${top.length ? `En çok çalışan: ${top.map(m => `<span>${MUSCLES[m]}</span>`).join(', ')}. ` : 'Bu hafta henüz set kaydı yok. '}Kesikli çizgi programın haftalık hedefi; boşluklar ihmal edilen kasları gösterir.</p></section>`;
+}
+
+/* ilerleme çizgileri (İLERLEME) */
+function progressLineCfg(points, opt){
+  const t0 = points[0].date, xw = d => Math.round(diffDays(t0, d) / 7 * 100) / 100;
+  const ds = [{ label:opt.label, data:points.map(p => ({ x:xw(p.date), y:p.v, d:p.date })), borderColor:themeColor(opt.color), backgroundColor:fadeFill(opt.color), fill:true,
+    borderWidth:3, pointRadius:3.5, pointBackgroundColor:themeColor('--card'), pointBorderColor:themeColor(opt.color), pointBorderWidth:2 }];
+  if (opt.proj) ds.push({ label:t('Plan'), data:opt.proj.map(p => ({ x:xw(p.date), y:Math.round(p.v * 10) / 10, d:p.date })), borderColor:themeColor('--viz-3'), borderDash:[6, 6], borderWidth:2, pointRadius:0, fill:false });
+  return { type:'line', data:{ datasets:ds },
+    options:{ interaction:{ mode:'nearest', axis:'x', intersect:false },
+      scales:{ x:{ type:'linear', min:0, grid:{ display:false }, ticks:{ stepSize:1, maxTicksLimit:innerWidth < 640 ? 7 : 14, callback:v => Number.isInteger(v) ? weekLbl(v) : '' } },
+        y:{ ticks:{ callback:v => fmt(v, 1) } } },
+      plugins:{ legend:{ display:!!opt.proj }, tooltip:{ callbacks:{ title:it => fmtDate(it[0].raw.d), label:c => ` ${c.dataset.label}: ${fmt(c.parsed.y, 1)} ${opt.unit}` } } } } };
+}
+function lineCard(id, pts, opt, h = 230){
+  if (pts.length < 2) return `<p class="muted small">Grafik için en az 2 ölçüm gerekiyor.</p>`;
+  return chartSlot(id, () => progressLineCfg(pts, opt), h, opt.label, lineChart(pts, { ...opt, color:`var(${opt.color})` }));
+}
+function strengthCardHTML(){
+  const cnt = {}; S.workouts.forEach(w => Object.entries(w.sets || {}).forEach(([id, ss]) => { if ((ss || []).some(x => e1rm(x) > 0)) cnt[id] = (cnt[id] || 0) + 1; }));
+  const ids = Object.keys(cnt).filter(id => EX_BY_ID[id]).sort((a, b) => cnt[b] - cnt[a]);
+  const head = `<section class="card"><div class="hd"><h3>Güç ve hacim</h3><span class="sub">tahmini 1RM · haftalık toplam</span></div>`;
+  if (!ids.length) return head + `<p class="muted small">Antrenman kaydettikçe burada her hareketin tahmini 1RM gelişimi ve haftalık toplam hacim görünecek.</p></section>`;
+  const sel = ids.includes(UI.strEx) ? UI.strEx : ids[0];
+  const pts = S.workouts.filter(w => (w.sets?.[sel] || []).some(x => e1rm(x) > 0)).sort((a, b) => a.date < b.date ? -1 : 1).map(w => ({ date:w.date, v:Math.round(bestE1rm(w.sets[sel]) * 10) / 10 }));
+  const vol = {}; S.workouts.forEach(w => { const k = weekIndex(w.date); Object.values(w.sets || {}).forEach(ss => (ss || []).forEach(x => { if (x && x.kg && x.reps) vol[k] = (vol[k] || 0) + x.kg * x.reps; })); });
+  const lastWk = Math.max(1, weekIndex(today()), ...Object.keys(vol).map(Number)); const weeks = []; for (let w = Math.max(1, lastWk - 11); w <= lastWk; w++) weeks.push(w);
+  const f = pts[0], l = pts[pts.length - 1];
+  return head + `<div class="field"><label class="f">Hareket</label><select id="str_ex">${ids.map(id => `<option value="${id}" ${id === sel ? 'selected' : ''}>${esc(EX_BY_ID[id].name || EX_BY_ID[id].n)}</option>`).join('')}</select></div>
+    ${pts.length >= 2 ? lineCard('e1rm', pts, { label:t('Tahmini 1RM'), unit:'kg', color:'--viz-1' }, 210) : `<p class="muted small">Bu hareket için en az 2 seans gerekiyor.</p>`}
+    ${pts.length >= 2 ? `<p class="small" style="margin:6px 0 0">İlk seanstan bu yana: <b class="num">${fmtS(l.v - f.v, 1)} kg</b> <span class="muted num">(${fmtS((l.v / f.v - 1) * 100, 0)}%)</span></p>` : ''}
+    <div class="kicker" style="margin-top:16px">Haftalık hacim (tüm hareketler)</div>
+    ${chartSlot('tonnage', () => ({ type:'bar',
+      data:{ labels:weeks.map(weekLbl), datasets:[{ label:t('Hacim (kg × tekrar)'), data:weeks.map(w => Math.round(vol[w] || 0)),
+        backgroundColor:weeks.map((w, i) => themeColor(i === weeks.length - 1 ? '--viz-1' : '--viz-2')) }] },
+      options:{ plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:c => ` ${c.dataset.label}: ${fmt(c.parsed.y)}` } } },
+        scales:{ x:{ grid:{ display:false } }, y:{ beginAtZero:true, ticks:{ callback:v => fmt(v) } } } } }), 190, t('Haftalık hacim'))}
+    <p class="muted tiny" style="margin:8px 0 0">1RM en iyi setten tahmin edilir: kg × (1 + tekrar/30). Diyette güç korunuyorsa kas da korunuyor demektir.</p></section>`;
+}
+
 /* ---------- iskelet ---------- */
 /* İkonlar: Tabler Icons (MIT) ve Lucide (ISC) — 24px, çizgi tabanlı */
 const ICONS = {
@@ -1591,6 +1735,9 @@ const icon = (n, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="non
 
 /* ---------- başlık ikonları ---------- */
 const H_ICONS = [
+  ['=Bu hafta','calstats'],
+  ['=Kas dağılımı','target'],
+  ['=Güç ve hacim','bolt'],
   ['=Dil · Language','palette'],
   ['=Hareket kütüphanesi','antrenman'],
   ['=Kalori','flame'],
@@ -1792,6 +1939,7 @@ function render(){
   afterRender();
 }
 function afterRender(){
+  mountCharts();
   $$('img[data-photo]').forEach(async img => { const v = await Photos.get(img.dataset.photo); if (v) img.src = v; else img.replaceWith(Object.assign(document.createElement('div'), { className:'empty', textContent:'yok' })); });
   if (UI.session || Timer.rest || UI.jw) ensureTick();
   const prog = $('.dial .prog');
@@ -1985,6 +2133,7 @@ function viewToday(){
   </section>
   ${kpiRow(t, tg, tot, cD, cT)}
   <section class="card qcard"><div class="kicker">Günün cümlesi</div><p class="qtext">${esc(quoteOfDay(t))}</p></section>
+  ${weekCardHTML(wk)}
 
   ${ev && (ev.phase === 'cut' || ev.phase === 'reverse' || ev.phase === 'pending') ? `<section class="card acc">
     <div class="kicker">Etkinlik modu${ev.phase === 'cut' ? ` · hafta ${ev.week}/${ev.totalWeeks} · ${ev.daysLeft} gün kaldı` : ev.phase === 'reverse' ? ' · çıkış' : ` · ${ev.daysToStart} gün sonra başlıyor`}</div>
@@ -2172,8 +2321,8 @@ function viewTraining(){
       <span class="muted">›</span></div>`).join('')}
     <p class="muted small" style="margin:6px 0 0">Bir gün kaçarsa program kaymaz: sıradaki antrenman hep bir sonraki gündür. Bir hareketi sevmezsen seansta "Nasıl yapılır? · Alternatifler"den değiştirebilirsin.</p>
   </section>
-  ${libCardHTML()}
 
+  ${muscleRadarHTML(wk)}
   <section class="card">
     <div class="hd"><h3>Kas hacmi · ${wk}. hafta</h3><span class="sub">sert set / hafta · çizgi: program hedefi</span></div>
     <div class="heat">${muscles.map(m => { const v = wv.vol[m] || 0; const z = zoneOf(v); const p = pv[m] || 0;
@@ -2181,6 +2330,7 @@ function viewTraining(){
     <div class="legendz">${ZONES.map((z, i) => `<span><i style="background:${z.c}"></i>${z.l} ${['0–2','3–5','6–16','17–22','22+'][i]}</span>`).join('')}</div>
     <p class="muted small" style="margin:8px 0 0">Yeni başlayan ve diyetteysen 6–12 set yeterli; daha fazlası gelişimi orantılı hızlandırmaz, toparlanmayı yer. RIR 4+ setler sayılmaz${wv.junk ? ` (bu hafta <b>${wv.junk}</b> dolgu set)` : ''}.</p>
   </section>
+  ${libCardHTML()}
 
   <section class="card">
     <div class="hd"><h3>Kardiyo</h3><span class="sub num">${wk}. hafta hedefi ${fmt(cT)} dk</span></div>
@@ -2462,12 +2612,13 @@ function viewProgress(){
     </div>
     ${goalProg != null ? `<div class="bar" style="margin-top:12px"><i style="width:${clamp(goalProg * 100, 0, 100)}%"></i></div><div class="muted small" style="margin-top:4px">Hedefinin %${fmt(clamp(goalProg * 100, 0, 999))}’i (${esc(GOALS[goal].n.toLocaleLowerCase('tr'))}, ${fmt(gKg,1)} kg)</div>` : ''}
   </section>
-  <section class="card"><div class="hd"><h3>Kilo</h3><span class="sub">yeşil kesikli: plan (${goal === 'maintain' ? 'sabit' : fmt(pace,2) + ' kg/hafta'})${goalWeight ? ` · hedef ≈ ${fmt(goalWeight,1)} kg` : ''}</span></div>${lineChart(wPts, { color:'var(--chart-1)', unit:'kg', label:'Kilo grafiği', proj })}</section>
+  <section class="card"><div class="hd"><h3>Kilo</h3><span class="sub">yeşil kesikli: plan (${goal === 'maintain' ? 'sabit' : fmt(pace,2) + ' kg/hafta'})${goalWeight ? ` · hedef ≈ ${fmt(goalWeight,1)} kg` : ''}</span></div>${lineCard('weight', wPts, { color:'--viz-1', unit:'kg', label:t('Kilo'), proj })}</section>
   <section class="card"><div class="hd"><h3>Gelecek analizi</h3><span class="sub">bu dönem</span></div>
     <table class="t num"><tr><th>Hafta</th><th>Plana göre</th><th>Şu anki hızınla</th></tr>${future.map(f => `<tr><td>${f.w}. hafta</td><td>${fmt(f.plan,1)} kg</td><td>${f.cur != null ? fmt(f.cur,1) + ' kg' : '–'}</td></tr>`).join('')}</table>
     <p class="muted small" style="margin:8px 0 0">${actualRate != null ? `Ortalama hızın ${fmtS(actualRate,2)} kg/hafta. ` : ''}Tahmin doğrusal; gerçek kayıp dalgalı ilerler ve zamanla yavaşlar.</p></section>
-  <section class="card"><div class="hd"><h3>Bel</h3><span class="sub">tartı durunca asıl veri</span></div>${lineChart(waistPts, { color:'var(--chart-2)', unit:'cm', label:'Bel grafiği' })}</section>
-  ${bfPts.length >= 2 ? `<section class="card"><div class="hd"><h3>Tahmini yağ oranı</h3></div>${lineChart(bfPts, { color:'var(--chart-4)', unit:'%', label:'Yağ oranı grafiği' })}</section>` : ''}
+  <section class="card"><div class="hd"><h3>Bel</h3><span class="sub">tartı durunca asıl veri</span></div>${lineCard('waist', waistPts, { color:'--viz-2', unit:'cm', label:t('Bel') })}</section>
+  ${bfPts.length >= 2 ? `<section class="card"><div class="hd"><h3>Tahmini yağ oranı</h3></div>${lineCard('bf', bfPts, { color:'--viz-3', unit:'%', label:t('Yağ oranı') })}</section>` : ''}
+  ${strengthCardHTML()}
   ${wkStats.length ? `<section class="card"><div class="hd"><h3>Hareket ve uyku</h3><span class="sub">haftalık ortalama</span></div>
     <table class="t num"><tr><th>Hafta</th><th>Adım</th><th>Uyku</th></tr>${wkStats.map((s, i) => { const prev = wkStats[i - 1]; const drop = prev?.st && s.st && s.st < prev.st * 0.8;
       return `<tr><td>${s.w}.</td><td>${s.st ? fmt(s.st) : '–'} ${drop ? '<span class="pill warn">düştü</span>' : ''}</td><td style="color:${s.sl && s.sl < 7 ? 'var(--bad)' : ''}">${s.sl ? fmt(s.sl,1) + ' sa' : '–'}</td></tr>`; }).join('')}</table>
@@ -2743,6 +2894,7 @@ function switchTo(id){
 /* ---------- çeviri sözlüğü (İngilizce) ---------- */
 // Anahtar: arayüzdeki Türkçe metin (sayılar #). Değer: İngilizcesi. Eksikler tests/test_ingilizce.py ile bulunur.
 const I18N_EN = {
+  "Tahmini 1RM": "Estimated 1RM",
   "\"Doğal\" ≠ kalorisiz:": "\"Natural\" ≠ calorie-free:",
   "\"Metabolizmam yavaş.\"": "\"My metabolism is slow.\"",
   "\"Telafi edeceğim.\"": "\"I'll make up for it.\"",
@@ -2843,8 +2995,11 @@ const I18N_EN = {
   "#. hafta": "Week #",
   "#. hafta hedefi # dk": "Week #1 target #2 min",
   "#. hafta ve sonrası → çıkış: her hafta +# kcal.": "Week # onward → exit: +# kcal each week.",
+  "#. hafta · antrenman ve kardiyo": "Week # · training and cardio",
+  "#. hafta · sert set": "Week # · hard sets",
   "#. haftadan sonra # kg/hafta kayıp, yağ oranına göre fazla (%# üstü: #–# kg). Kalori düşük kalmış olabilir, kas kaybı riski var. Günlük kaloriyi # kcal artır (karbonhidrata).": "After week #, losing # kg/week is too fast for your body fat (over #%: #–# kg). Calories may be too low, risking muscle loss. Increase daily calories by # kcal (from carbs).",
   "#. hf": "Wk #",
+  "#RM en iyi setten tahmin edilir: kg × (# + tekrar/#). Diyette güç korunuyorsa kas da korunuyor demektir.": "1RM is estimated from your best set: kg × (# + reps/#). If your strength holds on a diet, so does your muscle.",
   "#dk": "#min",
   "#° sehpada": "on a #° bench",
   "#–# dk yerinde yürüyüş, kol çevirme, # kalça köprüsü.": "#–# min marching in place, arm circles, # glute bridges.",
@@ -2871,6 +3026,7 @@ const I18N_EN = {
   "+# sn": "+# s",
   ", adım hedefini geç.": "and beat your step goal.",
   ". Kalan haftaya odaklan.": ". Focus on the weeks you have left.",
+  ". Kesikli çizgi programın haftalık hedefi; boşluklar ihmal edilen kasları gösterir.": ". The dashed line is the program's weekly target; gaps show neglected muscles.",
   "/ # dk": "/ # min",
   "/ # gün": "/ # days",
   "@ başladı": "started @",
@@ -2901,6 +3057,7 @@ const I18N_EN = {
   "Agresif başlamak.": "Starting too aggressively.",
   "Agresif — başlangıçta önerilmez": "Aggressive — not recommended at the start",
   "Akdeniz salata (sossuz)": "Mediterranean salad (no dressing)",
+  "Aktif gün": "Active days",
   "Aktif: @ → @. Hafta #/#, # kcal.": "Active: @ → @. Week #/#, # kcal.",
   "Aktif: @ → @. Henüz başlamadı.": "Active: @ → @. Not started yet.",
   "Aktif: @ → @. Çıkış: # kcal.": "Active: @ → @. Exit: # kcal.",
@@ -2941,6 +3098,7 @@ const I18N_EN = {
   "Antrenman deneyimin": "Your training experience",
   "Antrenman günleri": "Training days",
   "Antrenman günlerin": "Your training days",
+  "Antrenman kaydettikçe burada her hareketin tahmini #RM gelişimi ve haftalık toplam hacim görünecek.": "As you log workouts, the estimated 1RM progress for each exercise and your weekly total volume will appear here.",
   "Antrenman kaçtıysa yürüyüşle hareketi sürdür.": "If you missed a workout, keep moving with a walk.",
   "Antrenman programı": "Training program",
   "Antrenman ve beslenme koçu": "Training and nutrition coach",
@@ -3024,6 +3182,7 @@ const I18N_EN = {
   "Ağrısız yüksekliğe kadar, hafif ağırlık.": "Up to a pain-free height, light weight.",
   "Ağır setlerde yanında yardımcı olsun": "Have a spotter for heavy sets",
   "Ağır setlerde yardımcıyla çalış": "Use a spotter for heavy sets",
+  "Ağırlık (dk)": "Weights (min)",
   "Ağırlık antrenmanı yok": "No weight training",
   "Ağırlık eklemek zorlaştırır": "Adding weight makes it harder",
   "Ağırlığı ağır değil kontrollü seç": "Choose a weight you can control, not a heavy one",
@@ -3218,9 +3377,11 @@ const I18N_EN = {
   "Bu güne henüz bir şey eklenmedi. Her şeyi mutfak tartısıyla tart; \"bir lokma\"ları da yaz.": "Nothing added for this day yet. Weigh everything on a kitchen scale; log the \"just one bite\"s too.",
   "Bu hafta": "This week",
   "Bu hafta dürüstçe:": "Honestly, this week:",
+  "Bu hafta henüz set kaydı yok. Kesikli çizgi programın haftalık hedefi; boşluklar ihmal edilen kasları gösterir.": "No sets logged this week yet. The dashed line is the program's weekly target; gaps show neglected muscles.",
   "Bu hafta kalori, kardiyo tarafında aksama var. Plan değiştirmeden önce bir hafta tam uygula — sorun sistemde değil uygulamada olabilir. Kalori değişmiyor.": "This week you slipped on calories and cardio. Follow the plan fully for one week before changing it — the problem may be the execution, not the system. Calories stay the same.",
   "Bu hafta kreatine başladım": "I started creatine this week",
   "Bu haftalarda düşüş yavaşlar; motivasyon kaybı en çok bu dönemde başlar. Tek bir kaçamağın zincirleme bozmaya dönüşmemesine dikkat et. Bel ölçüsünü ve fotoğrafları da değerlendir.": "Weight loss slows in these weeks; this is when motivation most often drops. Don't let a single slip turn into a chain. Look at your waist measurement and photos too.",
+  "Bu hareket için en az # seans gerekiyor.": "This exercise needs at least # sessions.",
   "Bu hareketi sevmedin mi? Aynı kası çalıştıran başka hareketler": "Don't like this exercise? Other exercises for the same muscle",
   "Bu program haftada # gün için kurulu; sen # gün seçtin. Günler sırayla kayar, sorun değil; ama haftada daha az gün için başka bir program daha uygun olabilir.": "This program is built for # days a week; you chose # days. The days shift in order, which is fine; but another program may suit fewer days a week better.",
   "Bu programa geç": "Switch to this program",
@@ -3425,6 +3586,7 @@ const I18N_EN = {
   "En az bir set gir.": "Enter at least one set.",
   "En zor dönem": "The hardest stretch",
   "En zor kısım geride kaldı. Düzen artık alışkanlığa dönüşüyor; aynı tempoyu koru.": "The hardest part is behind you. The routine is turning into a habit; keep the same pace.",
+  "En çok çalışan:": "Worked most:",
   "Enerji / dinlenme": "Energy / recovery",
   "Enerji çok düşükse pre-workout yarım ölçek (kafein yatmadan # saat önce kesilir).": "If your energy is very low, take half a scoop of pre-workout (stop caffeine # hours before bed).",
   "Erkek": "Male",
@@ -3502,6 +3664,7 @@ const I18N_EN = {
   "Goblet squat, Dambıl bench press, Tek kol dambıl kürek, Dambıl Romanian deadlift, Oturarak dambıl omuz press, Bant açma": "Goblet squat, Dumbbell bench press, Single-arm dumbbell row, Dumbbell Romanian deadlift, Seated dumbbell shoulder press, Band pull-apart",
   "Google Gemini": "Google Gemini",
   "Grafik için en az # ölçüm gerekiyor.": "The chart needs at least # measurements.",
+  "Grafik yüklenemedi.": "The chart couldn't be loaded.",
   "Grafit": "Graphite",
   "Gri sayılar geçen seansın değerleri.": "Grey numbers are from your last session.",
   "Görsel başlangıç ve bitiş pozisyonları arasında döner.": "The image alternates between the start and end positions.",
@@ -3567,7 +3730,9 @@ const I18N_EN = {
   "Güç (tahmini #RM)": "Strength (est. #RM)",
   "Güç + Hacim # Gün (üst/alt)": "Strength + Hypertrophy # Days (upper/lower)",
   "Güç kazanmak sabır ister; her hafta biraz daha.": "Building strength takes patience; a little more every week.",
+  "Güç ve hacim": "Strength and volume",
   "Güçlendikçe ince banda geç": "Move to a thinner band as you get stronger",
+  "Hacim (kg × tekrar)": "Volume (kg × reps)",
   "Hack squat": "Hack squat",
   "Hafif aktif": "Lightly active",
   "Hafif aktif — Haftada #–# gün antrenman": "Lightly active — #–# training days a week",
@@ -3588,6 +3753,9 @@ const I18N_EN = {
   "Haftada # kardiyo, zone #, # → # → # dk. Ağırlık devam.": "# cardio sessions a week, zone #, # → # → # min. Keep lifting.",
   "Haftada # kg": "# kg a week",
   "Haftada #–# gün antrenman": "#–# training days a week",
+  "Haftalık aktivite": "Weekly activity",
+  "Haftalık hacim": "Weekly volume",
+  "Haftalık hacim (tüm hareketler)": "Weekly volume (all exercises)",
   "Haftalık kayıp": "Weekly loss",
   "Haftalık kontrol": "Weekly check-in",
   "Haftalık kontrol günü": "Weekly check-in day",
@@ -3691,10 +3859,12 @@ const I18N_EN = {
   "Kalan kalori": "Calories left",
   "Kaldırdığın ağırlığı düşürme; gerekirse set sayısını azalt. Kısa dinlenme ve pump için ekstra set yok.": "Don't drop the weight you lift; reduce sets if needed. No short rests or extra pump sets.",
   "Kalori": "Calories",
+  "Kalori (tahmini)": "Calories (estimated)",
   "Kalori açığı + ağırlık antrenmanı. Kas korunur, yağ gider.": "Calorie deficit + weight training. Muscle is kept, fat comes off.",
   "Kalori bakımın ~%#’iyle başlar, her hafta −# kcal (karbonhidrattan). Protein sabit.": "Calories start at ~#% of maintenance and drop −# kcal each week (from carbs). Protein stays fixed.",
   "Kalori güncel kilona (# kg) göre yeniden hesaplanır. Ölçüm ve antrenman geçmişin korunur.": "Calories are recalculated from your current weight (# kg). Your measurement and workout history is kept.",
   "Kalori say, adım at.": "Count calories, take steps.",
+  "Kalori tahminidir: süre × hareketin yoğunluğu (MET) × kilon; dinlenirken harcadığın düşülmüştür. Beslenme hedefini değiştirmez.": "Calories are an estimate: duration × exercise intensity (MET) × your weight, minus what you burn at rest. It doesn't change your nutrition target.",
   "Kalori tutmadıysa veya #+ alanda aksama varsa → önce uyum.": "If you missed calories or slipped in #+ areas → adherence first.",
   "Kalori ve makro hedefini hesaplar; antrenmanını, kardiyonu, adımını ve uykunu takip eder; her hafta ölçümlerine bakıp planı ayarlar. Yağ yakmak, formu korumak ya da kas kazanmak — hedefini sonra değiştirebilirsin. Veriler bu bilgisayarda kalır.": "It calculates your calorie and macro targets; tracks your training, cardio, steps and sleep; and adjusts the plan each week based on your measurements. Lose fat, maintain or build muscle — you can change your goal later. Your data stays on this computer.",
   "Kalori ve makrolarımı tuttum": "I hit my calories and macros",
@@ -3735,6 +3905,7 @@ const I18N_EN = {
   "Karb g": "Carbs g",
   "Karbonhidrat": "Carbohydrates",
   "Kardiyo": "Cardio",
+  "Kardiyo (dk)": "Cardio (min)",
   "Kardiyo başlangıç (dk/hafta)": "Starting cardio (min/week)",
   "Kardiyo doğrudan yağ yakmaz; ekstra açık, metabolizma, sindirim, kalp sağlığı.": "Cardio doesn't burn fat directly; it adds to the deficit and helps metabolism, digestion and heart health.",
   "Kardiyo ekle": "Add cardio",
@@ -3753,6 +3924,7 @@ const I18N_EN = {
   "Karın ve kalça sıkı, bel çökmesin": "Abs and glutes tight, don't let your lower back sag",
   "Karşı kol ve bacağı uzat, bir an bekle": "Extend the opposite arm and leg, pause for a moment",
   "Karşı kol ve bacağı yavaşça uzat": "Slowly extend the opposite arm and leg",
+  "Kas dağılımı": "Muscle distribution",
   "Kas gelişimi": "Muscle building",
   "Kas hacmi bölgeleri (haftalık sert set): #–# düşük · #–# minimal · #–# verimli · #–# yüksek · #+ aşırı. Yeni başlayan için #–# yeterli; fazlası gelişimi orantılı hızlandırmaz.": "Muscle volume zones (hard sets per week): #–# low · #–# minimal · #–# productive · #–# high · #+ excessive. #–# is enough for beginners; more doesn't speed up progress proportionally.",
   "Kas hacmi · #. hafta": "Muscle volume · week #",
@@ -4015,6 +4187,7 @@ const I18N_EN = {
   "Pirinç pilavı (pişmiş, yağsız)": "Rice (cooked, no oil)",
   "Pirinç unu (cream of rice)": "Rice flour (cream of rice)",
   "Pirinç, jasmin/basmati (çiğ)": "Rice, jasmine/basmati (raw)",
+  "Plan": "Plan",
   "Plan ayarları": "Plan settings",
   "Plan aynı": "Same plan",
   "Plan aynı kalsın": "Keep the plan the same",
@@ -4032,6 +4205,7 @@ const I18N_EN = {
   "Profiller": "Profiles",
   "Program": "Program",
   "Program değişince antrenman günlerin programın önerdiği günlere ayarlanır; Ayarlar’dan değiştirebilirsin. Kayıtlı antrenmanların ve hareket değiştirmelerin korunur.": "When you change programs, your training days are set to the program's suggested days; you can change them in Settings. Your logged workouts and exercise swaps are kept.",
+  "Program hedefi": "Program target",
   "Program paketleri": "Program packages",
   "Program: {p}. Günler: {g}.": "Program: {p}. Days: {g}.",
   "Program: {p}. Günlerini kontrol et (önerilen: {g}).": "Program: {p}. Check your days (suggested: {g}).",
@@ -4167,6 +4341,7 @@ const I18N_EN = {
   "Taahhüt:": "Commitment:",
   "Tabağın fotoğrafını çek; yapay zekâ besinleri, gramajı ve makroları tahmin etsin. Kaydetmeden önce düzenleyebilirsin.": "Take a photo of your plate; AI estimates the foods, portions and macros. You can edit before saving.",
   "Tahmin doğrusal; gerçek kayıp dalgalı ilerler ve zamanla yavaşlar.": "The projection is linear; real loss fluctuates and slows over time.",
+  "Tahmini #RM": "Estimated 1RM",
   "Tahmini yağ": "Estimated body fat",
   "Takip": "Tracking",
   "Takip hataları": "Tracking mistakes",
@@ -4237,6 +4412,7 @@ const I18N_EN = {
   "Tok tutan öğün planı kolaylaştırır: önce protein ve sebze.": "Filling meals make the plan easier: protein and vegetables first.",
   "Ton balığı (suda konserve)": "Tuna (canned in water)",
   "Toplam #:# / #:#": "Total #:# / #:#",
+  "Toplam süre": "Total time",
   "Topuklar yerde, göğüs dik": "Heels down, chest up",
   "Topuklar yerden kalkmasın": "Don't let your heels lift off the floor",
   "Topuklardan iterek kalk": "Drive through your heels to stand up",
@@ -4302,6 +4478,7 @@ const I18N_EN = {
   "Wall sit ya da leg press tercih et.": "Choose the wall sit or leg press.",
   "Wed": "Wed",
   "Whey": "Whey",
+  "Yakılan": "Burned",
   "Yan": "Side",
   "Yan omuz": "Side delts",
   "Yan omuz (yardımcı)": "Side delts (assisting)",
@@ -4474,6 +4651,8 @@ const I18N_EN = {
   "stres, hastalık, özel gün…": "stress, illness, a special day…",
   "süreci baltalayanlarla mesafe. Birlikte yapacak biri başarıyı artırır.": "keep your distance from people who undermine the process. Someone to do it with improves success.",
   "sıradaki": "next",
+  "tahmini": "estimated",
+  "tahmini #RM · haftalık toplam": "estimated 1RM · weekly total",
   "tamamlandı": "completed",
   "tartı durunca asıl veri": "the real data when the scale stalls",
   "tatlı kaşığı": "tsp",
@@ -4587,6 +4766,7 @@ const I18N_EN = {
   "İlk seans: #–# sn tutmayı hedefle.": "First session: aim to hold for #–# s.",
   "İlk seans: #–# tekrarda #–# tekrar yedek bırakacağın kiloyu bul.": "First session: find the weight that leaves #3–#4 reps in reserve at #1–#2 reps.",
   "İlk seans: #–# tekrarda tükeneceğin kiloyu bul.": "First session: find the weight that takes you to failure at #–# reps.",
+  "İlk seanstan bu yana:": "Since the first session:",
   "İstasyona tutunarak gövdeyi sabitle": "Hold on to the station to keep your torso still",
   "İsteğe bağlı. Yanıtlar yalnızca bu cihazda saklanır ve bırakma riskinin yüksek olduğu haftalarda (#–#. ve #–#.) hatırlatma olarak gösterilir.": "Optional. Answers are stored only on this device and shown as reminders in the weeks when the risk of quitting is highest (weeks #–# and #–#).",
   "İsteğe bağlı: #:# yeme penceresi; haftada # gün # saat oruç (örn. Pazar #:# → Pazartesi #:#; su, maden suyu, sade kahve serbest; o gün ağırlık yok, adım var; süreyi uzatma).": "Optional: #1:#2 eating window; a #4-hour fast #3 day a week (e.g. Sunday #5:#6 → Monday #7:#8; water, mineral water and black coffee allowed; no lifting that day but keep your steps; don't extend it).",
@@ -4800,6 +4980,7 @@ document.addEventListener('change', async e => {
 });
 document.addEventListener('input', e => {
   const el = e.target;
+  if (el.id === 'str_ex'){ UI.strEx = el.value; render(); return; }
   if (['lib_q', 'lib_m', 'lib_eq', 'lib_lvl'].includes(el.id)){ UI.lib = UI.lib || {}; UI.lib[el.id.slice(4)] = el.value; const r = $('#lib_res'); if (r) r.innerHTML = libResults(); return; }
   if (el.dataset.ex && UI.session && el.tagName === 'INPUT'){ const s = UI.session; const ex = el.dataset.ex, i = +el.dataset.i;
     s.sets[ex] = s.sets[ex] || []; s.sets[ex][i] = s.sets[ex][i] || {}; s.sets[ex][i][el.dataset.k] = num(el.value); }

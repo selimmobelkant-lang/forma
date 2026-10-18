@@ -11,6 +11,7 @@ Forma, kişisel antrenman ve beslenme koçu uygulaması. Arayüz Türkçe. Hedef
 - `index.html` — uygulamanın tamamı (HTML + CSS + JS tek dosyada, yaklaşık 1,9 MB).
 - `tests/` — Playwright testleri. `python3 tests/hepsi.py` hepsini çalıştırır.
 - `ex/` — kütüphanedeki yeni hareketlerin görselleri (free-exercise-db, kamu malı). `sw.js` içindeki `EX_RESIMLER` listesiyle önbelleğe alınır; görsel ekleyince listeyi de güncelle.
+- `vendor/chart.umd.min.js` — Chart.js 4.5.1 (MIT), grafikler için yerel kopya; `sw.js` önbelleğe alır. CDN'den yüklenmez. Güncellerken npm'den indir, bütünlüğünü (sha512) doğrula.
 - `manifest.webmanifest`, `sw.js`, `icons/` — PWA dosyaları. `yayinla.sh` — GitHub Pages'e yayın.
 
 ## index.html ile çalışırken

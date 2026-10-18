@@ -31,6 +31,11 @@ async def collect(pg, where=''):
       return out; })()""")
     for v in vis:
         if v not in ALLOW: turk.add(v)
+    # grafik içindeki yazılar (canvas): veri etiketleri, eksen başlıkları, kategori adları
+    cv = await pg.evaluate("""(typeof CHARTS === 'undefined' ? [] : CHARTS).filter(c => c.canvas.isConnected).flatMap(c => [...(c.data.labels || []), ...c.data.datasets.map(d => d.label),
+      ...Object.values(c.options.scales || {}).map(s => s.title && s.title.text).filter(Boolean)]).filter(x => typeof x === 'string')""")
+    for v in cv:
+        if TR_CHARS.search(v): turk.add('GRAFİK: ' + v)
 
 async def onboard(pg, age=34, sex='m', exp='mid'):
     await pg.fill('#ob_name', 'Test'); await pg.click('[data-act=obNext]'); await collect(pg)

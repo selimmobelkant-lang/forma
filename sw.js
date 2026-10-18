@@ -3,7 +3,7 @@
    Kullanıcı verisine (localStorage, IndexedDB) dokunmaz, yalnızca kendi "forma-" önbelleklerini yönetir. */
 const SURUM = 'v9';
 const CACHE = 'forma-' + SURUM;
-const DOSYALAR = ['index.html', 'manifest.webmanifest',
+const DOSYALAR = ['index.html', 'manifest.webmanifest', 'vendor/chart.umd.min.js',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
 const AG_BEKLEME = 3000; // sayfa açılırken ağı bu kadar bekle, sonra önbellekten aç
 // Hareket görselleri (ex/): kurulumdan sonra arka planda önbelleğe alınır; internetsiz de görünür.

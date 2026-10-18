@@ -78,6 +78,7 @@ async def main():
                 await pg.goto(BASE + adres); await pg.wait_for_timeout(500)
                 check(await pg.evaluate("!!document.querySelector('.sidebar .sb-item') && !document.querySelector('#ob_name')"), f'internetsiz açıldı: /{adres}')
             check(await pg.evaluate("JSON.stringify(Object.keys(localStorage).sort().map(k=>[k, localStorage.getItem(k)]))") == veri, 'kullanıcı verisi aynı kaldı')
+            check(await pg.evaluate("typeof Chart !== 'undefined' && Chart.version") == '4.5.1', 'Chart.js internetsiz yüklendi')
             img = await pg.evaluate("new Promise(r=>{const im=new Image(); im.onload=()=>r(im.naturalWidth); im.onerror=()=>r(0); im.src='ex/Goblet_Squat/1.jpg'})")
             check(img > 0, f'hareket görseli internetsiz açıldı ({img}px)')
             await pg.screenshot(path=SP + 'shots/p_offline.png')
